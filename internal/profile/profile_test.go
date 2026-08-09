@@ -8,6 +8,9 @@ import (
 
 func TestLoad(t *testing.T) {
 	dir := t.TempDir()
+	profileDir := filepath.Join(dir, "testprofile")
+	os.MkdirAll(profileDir, 0755)
+
 	script := `REQUIRES="kind helm kubectl"
 
 create() {
@@ -18,10 +21,7 @@ delete() {
   echo "deleting"
 }
 `
-	err := os.WriteFile(filepath.Join(dir, "testprofile.sh"), []byte(script), 0644)
-	if err != nil {
-		t.Fatal(err)
-	}
+	os.WriteFile(filepath.Join(profileDir, "install.sh"), []byte(script), 0644)
 
 	p, err := Load(dir, "testprofile")
 	if err != nil {
@@ -29,6 +29,9 @@ delete() {
 	}
 	if p.Name != "testprofile" {
 		t.Errorf("expected name 'testprofile', got %q", p.Name)
+	}
+	if p.Dir != profileDir {
+		t.Errorf("expected dir %q, got %q", profileDir, p.Dir)
 	}
 	if len(p.Requires) != 3 {
 		t.Fatalf("expected 3 requires, got %d", len(p.Requires))
@@ -46,10 +49,21 @@ func TestLoadNotFound(t *testing.T) {
 	}
 }
 
+func TestLoadMissingInstallSh(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "emptyprofile"), 0755)
+	_, err := Load(dir, "emptyprofile")
+	if err == nil {
+		t.Fatal("expected error for profile dir without install.sh")
+	}
+}
+
 func TestListAll(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "alpha.sh"), []byte(`REQUIRES="kind"`), 0644)
-	os.WriteFile(filepath.Join(dir, "beta.sh"), []byte(`REQUIRES="kind"`), 0644)
+	os.MkdirAll(filepath.Join(dir, "alpha"), 0755)
+	os.WriteFile(filepath.Join(dir, "alpha", "install.sh"), []byte(`REQUIRES="kind"`), 0644)
+	os.MkdirAll(filepath.Join(dir, "beta"), 0755)
+	os.WriteFile(filepath.Join(dir, "beta", "install.sh"), []byte(`REQUIRES="kind"`), 0644)
 	os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("not a profile"), 0644)
 
 	names, err := ListAll(dir)

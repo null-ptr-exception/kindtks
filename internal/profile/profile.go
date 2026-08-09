@@ -10,14 +10,16 @@ import (
 
 type Profile struct {
 	Name     string
+	Dir      string
 	Path     string
 	Requires []string
 }
 
 func Load(profileDir string, name string) (*Profile, error) {
-	path := filepath.Join(profileDir, name+".sh")
+	dir := filepath.Join(profileDir, name)
+	path := filepath.Join(dir, "install.sh")
 	if _, err := os.Stat(path); err != nil {
-		return nil, fmt.Errorf("profile %q not found: %w", name, err)
+		return nil, fmt.Errorf("profile %q not found (expected %s): %w", name, path, err)
 	}
 
 	requires, err := parseRequires(path)
@@ -27,6 +29,7 @@ func Load(profileDir string, name string) (*Profile, error) {
 
 	return &Profile{
 		Name:     name,
+		Dir:      dir,
 		Path:     path,
 		Requires: requires,
 	}, nil
@@ -40,10 +43,13 @@ func ListAll(profileDir string) ([]string, error) {
 
 	var names []string
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".sh") {
+		if !e.IsDir() {
 			continue
 		}
-		names = append(names, strings.TrimSuffix(e.Name(), ".sh"))
+		installSh := filepath.Join(profileDir, e.Name(), "install.sh")
+		if _, err := os.Stat(installSh); err == nil {
+			names = append(names, e.Name())
+		}
 	}
 	return names, nil
 }
