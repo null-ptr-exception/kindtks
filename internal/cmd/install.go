@@ -11,8 +11,9 @@ import (
 
 const (
 	containerProfileDir = "/profiles"
+	containerChartsDir  = "/charts"
 	hostBinDir          = "/.local/bin"
-	hostProfileDir      = "/.local/share/kindtks/profiles"
+	hostDataDir         = "/.local/share/kindtks"
 )
 
 var installCmd = &cobra.Command{
@@ -30,24 +31,17 @@ var installCmd = &cobra.Command{
 			return fmt.Errorf("copying binary: %w", err)
 		}
 
-		if err := os.MkdirAll(hostProfileDir, 0755); err != nil {
-			return fmt.Errorf("creating profile directory: %w", err)
+		profileDst := filepath.Join(hostDataDir, "profiles")
+		fmt.Println("Copying profiles...")
+		if err := copyDirRecursive(containerProfileDir, profileDst); err != nil {
+			return fmt.Errorf("copying profiles: %w", err)
 		}
 
-		entries, err := os.ReadDir(containerProfileDir)
-		if err != nil {
-			return fmt.Errorf("reading profiles from %s: %w", containerProfileDir, err)
-		}
-
-		for _, e := range entries {
-			if e.IsDir() {
-				continue
-			}
-			src := filepath.Join(containerProfileDir, e.Name())
-			dst := filepath.Join(hostProfileDir, e.Name())
-			fmt.Printf("Copying profile %s...\n", e.Name())
-			if err := copyFile(src, dst, 0644); err != nil {
-				return fmt.Errorf("copying profile %s: %w", e.Name(), err)
+		chartsDst := filepath.Join(hostDataDir, "charts")
+		if _, err := os.Stat(containerChartsDir); err == nil {
+			fmt.Println("Copying charts...")
+			if err := copyDirRecursive(containerChartsDir, chartsDst); err != nil {
+				return fmt.Errorf("copying charts: %w", err)
 			}
 		}
 
@@ -58,12 +52,37 @@ var installCmd = &cobra.Command{
 	},
 }
 
+func copyDirRecursive(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+
+		if info.IsDir() {
+			return os.MkdirAll(target, 0755)
+		}
+
+		fmt.Printf("  %s\n", rel)
+		return copyFile(path, target, info.Mode())
+	})
+}
+
 func copyFile(src, dst string, perm os.FileMode) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
+
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return err
+	}
 
 	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
 	if err != nil {
