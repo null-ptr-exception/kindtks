@@ -10,10 +10,10 @@ create() {
     --image "$KIND_IMAGE" \
     --config "$KINDTKS_PROFILE_DIR/kind-config.yaml"
 
-  echo "==> Waiting for cluster to be ready..."
-  kubectl wait --for=condition=Ready nodes --all --timeout=120s
-
   install_cilium
+
+  echo "==> Waiting for nodes to be ready..."
+  kubectl wait --for=condition=Ready nodes --all --timeout=600s
   install_istio
   install_vault
   install_vault_secrets_operator
@@ -34,6 +34,7 @@ install_cilium() {
   local values=""
   values="$values --set ipam.mode=kubernetes"
   values="$values --set image.pullPolicy=IfNotPresent"
+  values="$values --set operator.replicas=1"
   if [ -n "${KINDTKS_REGISTRY:-}" ]; then
     values="$values --set image.repository=${KINDTKS_REGISTRY}cilium/cilium"
     values="$values --set image.useDigest=false"
@@ -48,8 +49,8 @@ install_cilium() {
     $values
 
   echo "==> Waiting for Cilium to be ready..."
-  kubectl -n kube-system rollout status deployment/cilium-operator --timeout=120s
-  kubectl -n kube-system rollout status daemonset/cilium --timeout=120s
+  kubectl -n kube-system rollout status deployment/cilium-operator --timeout=600s
+  kubectl -n kube-system rollout status daemonset/cilium --timeout=600s
 }
 
 install_istio() {
@@ -65,14 +66,16 @@ install_istio() {
 
   helm install istiod "$KINDTKS_CHARTS_DIR/istiod-1.16.7.tgz" \
     --namespace istio-system \
-    --wait --timeout 120s \
+    --wait --timeout 600s \
     $hub_values
 
   echo "==> Installing Istio Ingress Gateway..."
   helm install istio-ingress "$KINDTKS_CHARTS_DIR/gateway-1.16.7.tgz" \
     --namespace istio-ingress --create-namespace \
-    --wait --timeout 120s \
     $hub_values
+
+  echo "==> Waiting for Istio Ingress Gateway to be ready..."
+  kubectl -n istio-ingress rollout status deployment/istio-ingress --timeout=600s
 }
 
 install_vault() {
@@ -86,7 +89,7 @@ install_vault() {
 
   helm install vault "$KINDTKS_CHARTS_DIR/vault-0.34.0.tgz" \
     --namespace vault --create-namespace \
-    --wait --timeout 120s \
+    --wait --timeout 600s \
     $values
 }
 
@@ -99,6 +102,6 @@ install_vault_secrets_operator() {
 
   helm install vault-secrets-operator "$KINDTKS_CHARTS_DIR/vault-secrets-operator-1.5.0.tgz" \
     --namespace vault-secrets-operator --create-namespace \
-    --wait --timeout 120s \
+    --wait --timeout 600s \
     $values
 }
