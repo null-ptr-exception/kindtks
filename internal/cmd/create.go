@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
+	"github.com/rophy/kindtks/internal/config"
 	"github.com/rophy/kindtks/internal/prereq"
 	"github.com/rophy/kindtks/internal/profile"
 	"github.com/spf13/cobra"
@@ -38,16 +40,24 @@ func runProfileFunc(p *profile.Profile, funcName string) error {
 	c := exec.Command("bash", "-e", "-c", script)
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
+
+	cfg, _ := config.Load(config.DefaultPath())
+	registry := ""
+	if cfg != nil {
+		registry = cfg.Registry
+	}
+
+	home, _ := os.UserHomeDir()
+	dataDir := filepath.Join(home, ".local", "share", "kindtks")
+
 	c.Env = append(os.Environ(),
-		"KINDTKS_DATA_DIR="+dataDir(),
+		"KINDTKS_DATA_DIR="+dataDir,
+		"KINDTKS_CHARTS_DIR="+filepath.Join(dataDir, "charts"),
 		"KINDTKS_PROFILE_NAME="+p.Name,
+		"KINDTKS_PROFILE_DIR="+p.Dir,
+		"KINDTKS_REGISTRY="+registry,
 	)
 	return c.Run()
-}
-
-func dataDir() string {
-	home, _ := os.UserHomeDir()
-	return home + "/.local/share/kindtks"
 }
 
 func init() {
