@@ -38,6 +38,7 @@ create() {
   echo ""
   echo "==> gen1 cluster is ready!"
   echo "    kubectl config use-context kind-$CLUSTER_NAME"
+  echo "    Gateway: http://<app>.kindtks.localhost:30080"
 }
 
 delete() {
@@ -66,6 +67,9 @@ install_istio() {
 
   echo "==> Waiting for Istio Ingress Gateway to be ready..."
   kubectl -n istio-ingress rollout status deployment/istio-ingress --timeout=600s
+
+  echo "==> Creating wildcard Gateway (*.kindtks.localhost)..."
+  kubectl apply -f "$KINDTKS_PROFILE_DIR/gateway.yaml"
 }
 
 install_vault() {

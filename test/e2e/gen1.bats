@@ -26,12 +26,6 @@ setup_file() {
   sed -i "s/CLUSTER_NAME=\"gen1\"/CLUSTER_NAME=\"${CLUSTER_NAME}\"/" \
     "${E2E_HOME}/.local/share/kindtks/profiles/gen1/install.sh"
 
-  # Use high ports to avoid conflicts
-  sed -i 's/hostPort: 80$/hostPort: 18080/' \
-    "${E2E_HOME}/.local/share/kindtks/profiles/gen1/kind-config.yaml"
-  sed -i 's/hostPort: 443$/hostPort: 18443/' \
-    "${E2E_HOME}/.local/share/kindtks/profiles/gen1/kind-config.yaml"
-
   # Create the cluster
   HOME="$E2E_HOME" "${E2E_HOME}/.local/bin/kindtks" create gen1
 
@@ -110,6 +104,12 @@ kindtks() {
   assert_output "30443"
 }
 
+@test "wildcard gateway exists for *.kindtks.localhost" {
+  run kube -n istio-ingress get gateway kindtks -o jsonpath='{.spec.servers[0].hosts[0]}'
+  assert_success
+  assert_output "*.kindtks.localhost"
+}
+
 # --- Vault ---
 
 @test "vault server pod is running" {
@@ -125,6 +125,101 @@ kindtks() {
     -o jsonpath='{.items[0].status.availableReplicas}'
   assert_success
   assert_output "1"
+}
+
+# --- Echo service smoke test ---
+
+@test "deploy echo service and reach it via gateway" {
+  # Deploy echo server (no sidecar — testing ingress routing only)
+  kube create namespace echo-test
+  kube label namespace echo-test istio-injection=disabled
+  kube -n echo-test apply -f - <<'YAML'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: echo-html
+data:
+  index.html: "kindtks-ok"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echo
+  template:
+    metadata:
+      labels:
+        app: echo
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.24-alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+      volumes:
+        - name: html
+          configMap:
+            name: echo-html
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo
+spec:
+  selector:
+    app: echo
+  ports:
+    - port: 80
+      targetPort: 80
+YAML
+
+  # Create VirtualService to route echo.kindtks.localhost to the echo service
+  kube apply -f - <<'YAML'
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: echo
+  namespace: echo-test
+spec:
+  hosts:
+    - echo.kindtks.localhost
+  gateways:
+    - istio-ingress/kindtks
+  http:
+    - route:
+        - destination:
+            host: echo
+            port:
+              number: 80
+YAML
+
+  # Wait for echo pod to be ready
+  kube -n echo-test rollout status deployment/echo --timeout=300s
+
+  # Curl through the gateway
+  local retries=10
+  local success=false
+  for i in $(seq 1 $retries); do
+    if curl -s -o /dev/null -w '%{http_code}' --resolve echo.kindtks.localhost:30080:127.0.0.1 http://echo.kindtks.localhost:30080 | grep -q 200; then
+      success=true
+      break
+    fi
+    sleep 2
+  done
+
+  run curl -s --resolve echo.kindtks.localhost:30080:127.0.0.1 http://echo.kindtks.localhost:30080
+  assert_success
+  assert_output --partial "kindtks-ok"
+
+  # Cleanup
+  kube delete namespace echo-test
 }
 
 # --- Delete ---
