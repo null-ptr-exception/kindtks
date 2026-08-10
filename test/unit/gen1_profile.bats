@@ -8,7 +8,7 @@ setup() {
 
   # Set image env vars (as the Go CLI would from config.yaml)
   export IMAGE_CILIUM="quay.io/cilium/cilium:v1.13.10"
-  export IMAGE_CILIUM_OPERATOR="quay.io/cilium/operator-generic:v1.13.10"
+  export IMAGE_CILIUM_OPERATOR="quay.io/cilium/operator:v1.13.10"
   export IMAGE_ISTIO_PILOT="docker.io/istio/pilot:1.16.7"
   export IMAGE_ISTIO_PROXY="docker.io/istio/proxyv2:1.16.7"
   export IMAGE_VAULT="docker.io/hashicorp/vault:2.0.3"
