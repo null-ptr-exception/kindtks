@@ -118,11 +118,29 @@ kindtks() {
   assert_output "Running"
 }
 
-# --- Vault Secrets Operator ---
+# --- Vault UI ---
+
+@test "vault UI is reachable via gateway" {
+  local retries=10
+  for i in $(seq 1 $retries); do
+    local code
+    code=$(curl -s -o /dev/null -w '%{http_code}' -L --resolve vault.kindtks.localhost:30080:127.0.0.1 http://vault.kindtks.localhost:30080)
+    if [ "$code" = "200" ]; then
+      break
+    fi
+    sleep 2
+  done
+
+  run curl -s -o /dev/null -w '%{http_code}' -L --resolve vault.kindtks.localhost:30080:127.0.0.1 http://vault.kindtks.localhost:30080
+  assert_success
+  assert_output "200"
+}
+
+# --- Vault Secrets Operator (ricoberger) ---
 
 @test "vault-secrets-operator deployment is available" {
-  run kube -n vault-secrets-operator get deployment -l app.kubernetes.io/name=vault-secrets-operator \
-    -o jsonpath='{.items[0].status.availableReplicas}'
+  run kube -n vault-secrets-operator get deployment vault-secrets-operator \
+    -o jsonpath='{.status.availableReplicas}'
   assert_success
   assert_output "1"
 }

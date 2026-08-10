@@ -1,0 +1,16 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: vault-ui
+  namespace: vault
+spec:
+  hosts:
+    - vault.kindtks.localhost
+  gateways:
+    - istio-ingress/kindtks
+  http:
+    - route:
+        - destination:
+            host: vault-ui
+            port:
+              number: 8200

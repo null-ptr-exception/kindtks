@@ -5,3 +5,5 @@ server:
     repository: ${KINDTKS_REGISTRY}hashicorp/vault
 injector:
   enabled: false
+ui:
+  enabled: true

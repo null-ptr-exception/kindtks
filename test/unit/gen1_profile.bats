@@ -114,6 +114,20 @@ MOCK
   assert_output --partial "repository: registry.corp.com/hashicorp/vault"
 }
 
+@test "envsubst applies registry to vault-secrets-operator image" {
+  export KINDTKS_REGISTRY="registry.corp.com/"
+
+  run envsubst < "${KINDTKS_PROFILE_DIR}/values-vault-secrets-operator.yaml"
+  assert_output --partial "repository: registry.corp.com/ghcr.io/ricoberger/vault-secrets-operator"
+}
+
+@test "vault-secrets-operator is pre-configured for in-cluster vault" {
+  run cat "${KINDTKS_PROFILE_DIR}/values-vault-secrets-operator.yaml"
+  assert_output --partial "address: http://vault.vault.svc:8200"
+  assert_output --partial "authMethod: token"
+  assert_output --partial "value: root"
+}
+
 # --- gateway service config ---
 
 @test "gateway values set NodePort with correct ports" {

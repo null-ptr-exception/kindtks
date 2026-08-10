@@ -1,7 +1,7 @@
 REQUIRES="kind helm kubectl"
 
 CLUSTER_NAME="gen1"
-KIND_IMAGE="kindest/node:v1.24.15"
+KIND_IMAGE="kindest/node:v1.24.17"
 
 helm_install() {
   local name="$1" chart="$2" namespace="$3"
@@ -39,6 +39,7 @@ create() {
   echo "==> gen1 cluster is ready!"
   echo "    kubectl config use-context kind-$CLUSTER_NAME"
   echo "    Gateway: http://<app>.kindtks.localhost:30080"
+  echo "    Vault UI: http://vault.kindtks.localhost:30080"
 }
 
 delete() {
@@ -48,8 +49,8 @@ delete() {
 }
 
 install_cilium() {
-  echo "==> Installing Cilium 1.12..."
-  helm_install cilium "$KINDTKS_CHARTS_DIR/cilium-1.12.19.tgz" kube-system
+  echo "==> Installing Cilium 1.13..."
+  helm_install cilium "$KINDTKS_CHARTS_DIR/cilium-1.13.10.tgz" kube-system
 
   echo "==> Waiting for Cilium to be ready..."
   kubectl -n kube-system rollout status deployment/cilium-operator --timeout=600s
@@ -76,10 +77,13 @@ install_vault() {
   echo "==> Installing Vault (dev mode)..."
   helm_install vault "$KINDTKS_CHARTS_DIR/vault-0.34.0.tgz" vault \
     --wait --timeout 600s
+
+  echo "==> Exposing Vault UI at vault.kindtks.localhost..."
+  kubectl apply -f "$KINDTKS_PROFILE_DIR/vault-virtualservice.yaml"
 }
 
 install_vault_secrets_operator() {
-  echo "==> Installing Vault Secrets Operator..."
-  helm_install vault-secrets-operator "$KINDTKS_CHARTS_DIR/vault-secrets-operator-1.5.0.tgz" vault-secrets-operator \
+  echo "==> Installing Vault Secrets Operator (ricoberger) 1.26.0..."
+  helm_install vault-secrets-operator "$KINDTKS_CHARTS_DIR/vault-secrets-operator-2.7.0.tgz" vault-secrets-operator \
     --wait --timeout 600s
 }
