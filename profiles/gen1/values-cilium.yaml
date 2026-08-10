@@ -1,0 +1,15 @@
+ipam:
+  mode: kubernetes
+image:
+  pullPolicy: IfNotPresent
+  repository: ${KINDTKS_REGISTRY}quay.io/cilium/cilium
+  useDigest: false
+operator:
+  replicas: 1
+  image:
+    repository: ${KINDTKS_REGISTRY}quay.io/cilium/operator
+    useDigest: false
+preflight:
+  image:
+    repository: ${KINDTKS_REGISTRY}quay.io/cilium/cilium
+    useDigest: false

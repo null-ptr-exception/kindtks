@@ -1,0 +1,7 @@
+server:
+  dev:
+    enabled: true
+  image:
+    repository: ${KINDTKS_REGISTRY}hashicorp/vault
+injector:
+  enabled: false
