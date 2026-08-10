@@ -3,6 +3,22 @@ REQUIRES="kind helm kubectl"
 CLUSTER_NAME="gen1"
 KIND_IMAGE="kindest/node:v1.24.17"
 
+# Split IMAGE_* env vars into *_REPO and *_TAG for helm values
+split_image_refs() {
+  local vars
+  vars=$(env | grep '^IMAGE_' | cut -d= -f1)
+  for var in $vars; do
+    local val="${!var}"
+    export "${var}_REPO=${val%:*}"
+    export "${var}_TAG=${val##*:}"
+  done
+
+  # Istio uses hub (registry/org) rather than full image repo
+  if [ -n "${IMAGE_ISTIO_PILOT_REPO:-}" ]; then
+    export ISTIO_HUB="${IMAGE_ISTIO_PILOT_REPO%/*}"
+  fi
+}
+
 helm_install() {
   local name="$1" chart="$2" namespace="$3"
   shift 3
@@ -21,6 +37,8 @@ helm_install() {
 }
 
 create() {
+  split_image_refs
+
   echo "==> Creating Kind cluster '$CLUSTER_NAME' (k8s 1.24)..."
   kind create cluster \
     --name "$CLUSTER_NAME" \

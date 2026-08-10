@@ -2,7 +2,8 @@ server:
   dev:
     enabled: true
   image:
-    repository: ${KINDTKS_REGISTRY}hashicorp/vault
+    repository: ${IMAGE_VAULT_REPO}
+    tag: ${IMAGE_VAULT_TAG}
   extraEnvironmentVars:
     VAULT_DEV_KV_V1: "true"
 injector:

@@ -2,14 +2,17 @@ ipam:
   mode: kubernetes
 image:
   pullPolicy: IfNotPresent
-  repository: ${KINDTKS_REGISTRY}quay.io/cilium/cilium
+  repository: ${IMAGE_CILIUM_REPO}
+  tag: ${IMAGE_CILIUM_TAG}
   useDigest: false
 operator:
   replicas: 1
   image:
-    repository: ${KINDTKS_REGISTRY}quay.io/cilium/operator
+    repository: ${IMAGE_CILIUM_OPERATOR_REPO}
+    tag: ${IMAGE_CILIUM_OPERATOR_TAG}
     useDigest: false
 preflight:
   image:
-    repository: ${KINDTKS_REGISTRY}quay.io/cilium/cilium
+    repository: ${IMAGE_CILIUM_REPO}
+    tag: ${IMAGE_CILIUM_TAG}
     useDigest: false

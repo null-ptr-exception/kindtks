@@ -27,7 +27,7 @@ var deleteCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Deleting cluster(s) from profile %q...\n", name)
-		return runProfileFunc(p, "delete")
+		return runProfileFunc(p, "delete", nil)
 	},
 }
 

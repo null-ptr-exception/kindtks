@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	Registry string `yaml:"registry"`
+	Images map[string]string `yaml:"images"`
 }
 
 func Load(path string) (*Config, error) {
@@ -28,7 +28,15 @@ func Load(path string) (*Config, error) {
 	return cfg, nil
 }
 
-func DefaultPath() string {
-	home, _ := os.UserHomeDir()
-	return home + "/.config/kindtks/config.yaml"
+func Merge(base, override *Config) *Config {
+	merged := &Config{
+		Images: make(map[string]string),
+	}
+	for k, v := range base.Images {
+		merged.Images[k] = v
+	}
+	for k, v := range override.Images {
+		merged.Images[k] = v
+	}
+	return merged
 }

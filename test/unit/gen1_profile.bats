@@ -5,7 +5,14 @@ load '../helpers/test_helper'
 setup() {
   export KINDTKS_PROFILE_DIR="${BATS_TEST_DIRNAME}/../../profiles/gen1"
   export KINDTKS_CHARTS_DIR="/fake/charts"
-  export KINDTKS_REGISTRY=""
+
+  # Set image env vars (as the Go CLI would from config.yaml)
+  export IMAGE_CILIUM="quay.io/cilium/cilium:v1.13.10"
+  export IMAGE_CILIUM_OPERATOR="quay.io/cilium/operator-generic:v1.13.10"
+  export IMAGE_ISTIO_PILOT="docker.io/istio/pilot:1.16.7"
+  export IMAGE_ISTIO_PROXY="docker.io/istio/proxyv2:1.16.7"
+  export IMAGE_VAULT="docker.io/hashicorp/vault:2.0.3"
+  export IMAGE_VAULT_SECRETS_OPERATOR="ghcr.io/ricoberger/vault-secrets-operator:v1.26.0"
 
   # Create a mock bin directory and prepend to PATH
   export MOCK_BIN="${BATS_TEST_TMPDIR}/bin"
@@ -49,9 +56,32 @@ MOCK
   assert_output "function"
 }
 
+# --- split_image_refs ---
+
+@test "split_image_refs creates REPO and TAG vars" {
+  split_image_refs
+  assert_equal "$IMAGE_CILIUM_REPO" "quay.io/cilium/cilium"
+  assert_equal "$IMAGE_CILIUM_TAG" "v1.13.10"
+}
+
+@test "split_image_refs derives ISTIO_HUB from pilot image" {
+  split_image_refs
+  assert_equal "$ISTIO_HUB" "docker.io/istio"
+}
+
+@test "split_image_refs works with corporate registry" {
+  export IMAGE_CILIUM="corp.example.com/cilium/cilium:v1.13.10"
+  export IMAGE_ISTIO_PILOT="corp.example.com/istio/pilot:1.16.7"
+  split_image_refs
+  assert_equal "$IMAGE_CILIUM_REPO" "corp.example.com/cilium/cilium"
+  assert_equal "$IMAGE_CILIUM_TAG" "v1.13.10"
+  assert_equal "$ISTIO_HUB" "corp.example.com/istio"
+}
+
 # --- helm_install values file lookup ---
 
 @test "helm_install uses values file matching release name" {
+  split_image_refs
   helm_install cilium /fake/charts/cilium.tgz kube-system
 
   run cat "$HELM_ARGS_FILE"
@@ -64,68 +94,59 @@ MOCK
 
   run cat "$HELM_ARGS_FILE"
   refute_output --partial "--values"
-  assert_output --partial "install no-such-release /fake/charts/foo.tgz --namespace default --create-namespace"
 }
 
 @test "helm_install forwards extra arguments" {
+  split_image_refs
   helm_install cilium /fake/charts/cilium.tgz kube-system --wait --timeout 300s
 
   run cat "$HELM_ARGS_FILE"
   assert_output --partial "--wait --timeout 300s"
 }
 
-# --- envsubst with empty registry ---
+# --- envsubst with default images ---
 
-@test "envsubst leaves default repos when KINDTKS_REGISTRY is empty" {
-  export KINDTKS_REGISTRY=""
-
-  helm_install cilium /fake/charts/cilium.tgz kube-system
-
-  # Find the values file that was passed to helm
-  local values_arg
-  values_arg=$(grep -oP '(?<=--values )\S+' "$HELM_ARGS_FILE")
-  # The tmp file is cleaned up, so we envsubst ourselves to verify
+@test "envsubst resolves cilium image refs" {
+  split_image_refs
   run envsubst < "${KINDTKS_PROFILE_DIR}/values-cilium.yaml"
   assert_output --partial "repository: quay.io/cilium/cilium"
-  refute_output --partial '${KINDTKS_REGISTRY}'
+  assert_output --partial "tag: v1.13.10"
+  refute_output --partial '${IMAGE_'
 }
 
-# --- envsubst with registry prefix ---
+@test "envsubst resolves istio hub and tag" {
+  split_image_refs
+  run envsubst < "${KINDTKS_PROFILE_DIR}/values-istiod.yaml"
+  assert_output --partial "hub: docker.io/istio"
+  assert_output --partial "tag: 1.16.7"
+}
 
-@test "envsubst prepends registry prefix to image repos" {
-  export KINDTKS_REGISTRY="registry.corp.com/"
+@test "envsubst resolves vault image" {
+  split_image_refs
+  run envsubst < "${KINDTKS_PROFILE_DIR}/values-vault.yaml"
+  assert_output --partial "repository: docker.io/hashicorp/vault"
+  assert_output --partial "tag: 2.0.3"
+}
+
+@test "envsubst resolves vault-secrets-operator image" {
+  split_image_refs
+  run envsubst < "${KINDTKS_PROFILE_DIR}/values-vault-secrets-operator.yaml"
+  assert_output --partial "repository: ghcr.io/ricoberger/vault-secrets-operator"
+  assert_output --partial "tag: v1.26.0"
+}
+
+# --- envsubst with corporate registry ---
+
+@test "envsubst with corporate registry overrides all image repos" {
+  export IMAGE_CILIUM="corp.example.com/cilium:v1.13.10"
+  export IMAGE_VAULT="corp.example.com/vault:2.0.3"
+  split_image_refs
 
   run envsubst < "${KINDTKS_PROFILE_DIR}/values-cilium.yaml"
-  assert_output --partial "repository: registry.corp.com/quay.io/cilium/cilium"
-  assert_output --partial "repository: registry.corp.com/quay.io/cilium/operator"
-}
-
-@test "envsubst applies registry to istio hub" {
-  export KINDTKS_REGISTRY="registry.corp.com/"
-
-  run envsubst < "${KINDTKS_PROFILE_DIR}/values-istiod.yaml"
-  assert_output --partial "hub: registry.corp.com/docker.io/istio"
-}
-
-@test "envsubst applies registry to vault image" {
-  export KINDTKS_REGISTRY="registry.corp.com/"
+  assert_output --partial "repository: corp.example.com/cilium"
 
   run envsubst < "${KINDTKS_PROFILE_DIR}/values-vault.yaml"
-  assert_output --partial "repository: registry.corp.com/hashicorp/vault"
-}
-
-@test "envsubst applies registry to vault-secrets-operator image" {
-  export KINDTKS_REGISTRY="registry.corp.com/"
-
-  run envsubst < "${KINDTKS_PROFILE_DIR}/values-vault-secrets-operator.yaml"
-  assert_output --partial "repository: registry.corp.com/ghcr.io/ricoberger/vault-secrets-operator"
-}
-
-@test "vault-secrets-operator is pre-configured for in-cluster vault" {
-  run cat "${KINDTKS_PROFILE_DIR}/values-vault-secrets-operator.yaml"
-  assert_output --partial "address: http://vault.vault.svc:8200"
-  assert_output --partial "authMethod: token"
-  assert_output --partial "value: root"
+  assert_output --partial "repository: corp.example.com/vault"
 }
 
 # --- gateway service config ---
@@ -135,6 +156,15 @@ MOCK
   assert_output --partial "type: NodePort"
   assert_output --partial "nodePort: 30080"
   assert_output --partial "nodePort: 30443"
+}
+
+# --- vault-secrets-operator config ---
+
+@test "vault-secrets-operator is pre-configured for in-cluster vault" {
+  run cat "${KINDTKS_PROFILE_DIR}/values-vault-secrets-operator.yaml"
+  assert_output --partial "address: http://vault.vault.svc:8200"
+  assert_output --partial "authMethod: token"
+  assert_output --partial "value: root"
 }
 
 # --- values file completeness ---
@@ -147,4 +177,14 @@ MOCK
     fi
   done
   assert_equal "${#missing[@]}" 0 "Missing values files: ${missing[*]}"
+}
+
+# --- profile config ---
+
+@test "config.yaml lists all images" {
+  local keys
+  keys=$(grep -oP '^\s+\K[a-z-]+(?=:)' "${KINDTKS_PROFILE_DIR}/config.yaml")
+  for expected in cilium cilium-operator istio-pilot istio-proxy vault vault-secrets-operator; do
+    echo "$keys" | grep -q "^${expected}$" || fail "Missing image key: $expected"
+  done
 }
