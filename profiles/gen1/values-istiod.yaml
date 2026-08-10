@@ -1,3 +1,5 @@
 global:
   hub: ${ISTIO_HUB}
   tag: ${IMAGE_ISTIO_PILOT_TAG}
+pilot:
+  resources: null
