@@ -17,7 +17,7 @@ helm_install() {
   helm install "$name" "$chart" \
     --namespace "$namespace" --create-namespace \
     "${args[@]}" "$@"
-  [ -n "${tmp:-}" ] && rm -f "$tmp"
+  if [ -n "${tmp:-}" ]; then rm -f "$tmp"; fi
 }
 
 create() {
