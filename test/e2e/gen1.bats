@@ -145,6 +145,50 @@ kindtks() {
   assert_output "1"
 }
 
+@test "vault-secrets-operator syncs a secret from vault" {
+  # Write a secret to Vault via the vault pod
+  kube -n vault exec vault-0 -- vault kv put secret/e2e-test username=admin password=s3cret
+
+  # Create a VaultSecret CR in default namespace
+  kube apply -f - <<'YAML'
+apiVersion: ricoberger.de/v1alpha1
+kind: VaultSecret
+metadata:
+  name: e2e-test
+  namespace: default
+spec:
+  path: secret/e2e-test
+  type: Opaque
+YAML
+
+  # Wait for the operator to sync it into a Kubernetes Secret
+  local retries=15
+  local synced=false
+  for i in $(seq 1 $retries); do
+    if kube -n default get secret e2e-test &>/dev/null; then
+      synced=true
+      break
+    fi
+    sleep 2
+  done
+  assert [ "$synced" = "true" ]
+
+  # Verify the secret data matches what was written to Vault
+  run kube -n default get secret e2e-test -o jsonpath='{.data.username}'
+  assert_success
+  run bash -c "echo '$output' | base64 -d"
+  assert_output "admin"
+
+  run kube -n default get secret e2e-test -o jsonpath='{.data.password}'
+  assert_success
+  run bash -c "echo '$output' | base64 -d"
+  assert_output "s3cret"
+
+  # Cleanup
+  kube delete vaultsecret e2e-test -n default
+  kube -n vault exec vault-0 -- vault kv delete secret/e2e-test
+}
+
 # --- Echo service smoke test ---
 
 @test "deploy echo service and reach it via gateway" {
