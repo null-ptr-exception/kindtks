@@ -38,9 +38,13 @@ var listCmd = &cobra.Command{
 	},
 }
 
-func profileDir() string {
+func dataDir() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "share", "kindtks", "profiles")
+	return filepath.Join(home, ".local", "share", "kindtks")
+}
+
+func profileDir() string {
+	return filepath.Join(dataDir(), "profiles")
 }
 
 func joinOrNone(items []string) string {

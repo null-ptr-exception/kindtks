@@ -20,6 +20,17 @@ var installCmd = &cobra.Command{
 	Use:   "install",
 	Short: "Install kindtks binary and profiles to the host (run inside Docker)",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if fi, err := os.Stat(hostBinDir); err != nil || !fi.IsDir() {
+			fmt.Println("Error: volume mounts required for install.")
+			fmt.Println()
+			fmt.Println("Usage:")
+			fmt.Println("  docker run --rm \\")
+			fmt.Println("    -v \"$HOME/.local/bin:/.local/bin\" \\")
+			fmt.Println("    -v \"$HOME/.local/share:/.local/share\" \\")
+			fmt.Println("    kindtks install")
+			return fmt.Errorf("/.local/bin is not mounted")
+		}
+
 		self, err := os.Executable()
 		if err != nil {
 			return fmt.Errorf("finding own executable: %w", err)

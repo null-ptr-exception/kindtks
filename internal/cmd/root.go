@@ -9,20 +9,17 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "kindtks",
-	Short: "Bootstrap customized Kind clusters with pre-defined profiles",
+	Short: "kindtks - an opinionated customization of kind kubernetes with many thanks",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("kindtks - Bootstrap customized Kind clusters")
-		fmt.Println()
-		fmt.Println("Quick start:")
-		fmt.Println("  kindtks list              List available profiles")
-		fmt.Println("  kindtks create <profile>  Create cluster(s) from a profile")
-		fmt.Println("  kindtks delete <profile>  Delete cluster(s) from a profile")
-		fmt.Println()
-		fmt.Println("Install instructions:")
-		fmt.Println("  docker run --rm \\")
-		fmt.Println("    -v ~/.local/bin:/.local/bin \\")
-		fmt.Println("    -v ~/.local/share/kindtks:/.local/share/kindtks \\")
-		fmt.Println("    kindtks install")
+		cmd.Help()
+		if _, err := os.Stat("/.dockerenv"); err == nil {
+			fmt.Println()
+			fmt.Println("Install to your host:")
+			fmt.Println("  docker run --rm \\")
+			fmt.Println("    -v \"$HOME/.local/bin:/.local/bin\" \\")
+			fmt.Println("    -v \"$HOME/.local/share:/.local/share\" \\")
+			fmt.Println("    kindtks install")
+		}
 	},
 }
 
