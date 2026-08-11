@@ -43,7 +43,7 @@ create() {
   kind create cluster \
     --name "$CLUSTER_NAME" \
     --image "$KIND_IMAGE" \
-    --config "$KINDTKS_PROFILE_DIR/kind-config.yaml"
+    --config "${KINDTKS_KIND_CONFIG:-$KINDTKS_PROFILE_DIR/kind-config.yaml}"
 
   install_cilium
 
@@ -56,8 +56,13 @@ create() {
   echo ""
   echo "==> gen1 cluster is ready!"
   echo "    kubectl config use-context kind-$CLUSTER_NAME"
-  echo "    Gateway: http://<app>.kindtks.localhost:30080"
+  echo ""
   echo "    Vault UI: http://vault.kindtks.localhost:30080"
+  echo ""
+  echo "    To expose a service, create a VirtualService:"
+  echo "      gateways: [istio-ingress/kindtks]"
+  echo "      hosts: [<app>.kindtks.localhost]"
+  echo "    Then access it at: http://<app>.kindtks.localhost:30080"
 }
 
 delete() {

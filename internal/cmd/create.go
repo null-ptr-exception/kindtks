@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/rophy/kindtks/internal/config"
+	"github.com/rophy/kindtks/internal/kindconfig"
 	"github.com/rophy/kindtks/internal/prereq"
 	"github.com/rophy/kindtks/internal/profile"
 	"github.com/spf13/cobra"
@@ -70,11 +71,26 @@ func runProfileFunc(p *profile.Profile, funcName string, cfg *config.Config) err
 	home, _ := os.UserHomeDir()
 	dataDir := filepath.Join(home, ".local", "share", "kindtks")
 
+	kindCfgPath := filepath.Join(p.Dir, "kind-config.yaml")
+	if cfg != nil {
+		registries := cfg.PrivateRegistries()
+		if len(registries) > 0 {
+			patched, cleanup, err := kindconfig.PatchForRegistries(kindCfgPath, registries)
+			if err != nil {
+				return fmt.Errorf("patching kind config for private registries: %w", err)
+			}
+			defer cleanup()
+			kindCfgPath = patched
+			fmt.Printf("Trusting private registries: %s\n", strings.Join(registries, ", "))
+		}
+	}
+
 	env := append(os.Environ(),
 		"KINDTKS_DATA_DIR="+dataDir,
 		"KINDTKS_CHARTS_DIR="+filepath.Join(dataDir, "charts"),
 		"KINDTKS_PROFILE_NAME="+p.Name,
 		"KINDTKS_PROFILE_DIR="+p.Dir,
+		"KINDTKS_KIND_CONFIG="+kindCfgPath,
 	)
 
 	if cfg != nil {
