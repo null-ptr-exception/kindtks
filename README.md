@@ -10,15 +10,15 @@ Bootstraps fully configured clusters from pre-defined profiles.
 docker run --rm \
   -v "$HOME/.local/bin:/.local/bin" \
   -v "$HOME/.local/share:/.local/share" \
-  ghcr.io/rophy/kindtks:latest install
+  ghcr.io/null-ptr-exception/kindtks:latest install
 ```
 
-This copies the `kindtks` binary, profiles, and bundled Helm charts to `~/.local`.
+This copies the `kindtks` binary, profiles, and bundled Helm charts to `~/.local`. Make sure `~/.local/bin` is on your `$PATH`.
 
 ### Prerequisites
 
 - Docker
-- [kind](https://kind.sigs.k8s.io/)
+- [kind](https://kind.sigs.k8s.io/) (v0.17+)
 - kubectl
 - helm (for profiles that use Helm charts)
 
@@ -36,13 +36,18 @@ kindtks create gen1
 
 # Delete a cluster
 kindtks delete gen1
+
+# View full docs for a profile
+kindtks help gen1
 ```
+
+After creation, the kubectl context is set to `kind-<profile>` (e.g. `kind-gen1`).
 
 ## Profiles
 
-Each profile has its own README with component details and usage instructions.
+Each profile has its own documentation accessible via `kindtks help <profile>`.
 
-- **[gen1](profiles/gen1/README.md)** — Cilium, Istio, Vault, Vault Secrets Operator
+- **gen1** — Cilium, Istio, Vault, Vault Secrets Operator (`kindtks help gen1`)
 
 ## Custom Image Registry
 
@@ -66,4 +71,11 @@ images:
     vault-secrets-operator: registry.internal:5000/ghcr.io/ricoberger/vault-secrets-operator:v1.26.0
 ```
 
-Private registries (anything not docker.io, quay.io, ghcr.io, etc.) are automatically trusted in the Kind node's containerd config, so HTTP registries work without additional setup.
+Private registries are automatically trusted as insecure (HTTP) in the Kind node's containerd config. The following well-known registries are excluded from this auto-trust: docker.io, quay.io, ghcr.io, gcr.io, registry.k8s.io, k8s.gcr.io, mcr.microsoft.com, public.ecr.aws. Everything else is treated as private.
+
+Note: the Kind node image (`kindest/node`) must also be available locally or in your registry. Pull and tag it before running `kindtks create`:
+
+```bash
+docker pull registry.internal:5000/kindest/node:v1.24.17
+docker tag registry.internal:5000/kindest/node:v1.24.17 kindest/node:v1.24.17
+```
