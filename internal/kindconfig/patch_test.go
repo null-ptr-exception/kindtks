@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rophy/kindtks/internal/config"
 )
 
 const baseKindConfig = `kind: Cluster
@@ -20,7 +22,7 @@ func TestPatchForRegistries_NoRegistries(t *testing.T) {
 	cfgFile := filepath.Join(dir, "kind-config.yaml")
 	os.WriteFile(cfgFile, []byte(baseKindConfig), 0644)
 
-	path, cleanup, err := PatchForRegistries(cfgFile, nil)
+	path, cleanup, err := PatchForRegistries(cfgFile, nil, nil)
 	defer cleanup()
 
 	if err != nil {
@@ -36,7 +38,7 @@ func TestPatchForRegistries_AddsPatches(t *testing.T) {
 	cfgFile := filepath.Join(dir, "kind-config.yaml")
 	os.WriteFile(cfgFile, []byte(baseKindConfig), 0644)
 
-	path, cleanup, err := PatchForRegistries(cfgFile, []string{"registry.airgap:5000"})
+	path, cleanup, err := PatchForRegistries(cfgFile, []string{"registry.airgap:5000"}, nil)
 	defer cleanup()
 
 	if err != nil {
@@ -81,7 +83,7 @@ nodes:
 	cfgFile := filepath.Join(dir, "kind-config.yaml")
 	os.WriteFile(cfgFile, []byte(configWithPatch), 0644)
 
-	path, cleanup, err := PatchForRegistries(cfgFile, []string{"registry.airgap:5000"})
+	path, cleanup, err := PatchForRegistries(cfgFile, []string{"registry.airgap:5000"}, nil)
 	defer cleanup()
 
 	if err != nil {
@@ -96,5 +98,37 @@ nodes:
 	}
 	if !strings.Contains(content, "registry.airgap:5000") {
 		t.Error("should add new registry patch")
+	}
+}
+
+func TestPatchForRegistries_AuthOnly(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "kind-config.yaml")
+	os.WriteFile(cfgFile, []byte(baseKindConfig), 0644)
+
+	auth := map[string]*config.RegistryAuth{
+		"registry.corp.com": {Username: "user", Password: "pass"},
+	}
+	path, cleanup, err := PatchForRegistries(cfgFile, nil, auth)
+	defer cleanup()
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if path == cfgFile {
+		t.Error("expected a temp file path, got original")
+	}
+
+	data, _ := os.ReadFile(path)
+	content := string(data)
+
+	if !strings.Contains(content, "containerdConfigPatches") {
+		t.Error("patched config should contain containerdConfigPatches")
+	}
+	if !strings.Contains(content, `username = "user"`) {
+		t.Error("patched config should contain auth username")
+	}
+	if !strings.Contains(content, "disableDefaultCNI") {
+		t.Error("patched config should preserve original fields")
 	}
 }

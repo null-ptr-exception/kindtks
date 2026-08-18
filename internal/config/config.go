@@ -7,8 +7,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type RegistryAuth struct {
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
 type Config struct {
-	Images map[string]string `yaml:"images"`
+	Images       map[string]string           `yaml:"images"`
+	RegistryAuth map[string]*RegistryAuth    `yaml:"registryAuth,omitempty"`
 }
 
 func Load(path string) (*Config, error) {
@@ -30,13 +36,20 @@ func Load(path string) (*Config, error) {
 
 func Merge(base, override *Config) *Config {
 	merged := &Config{
-		Images: make(map[string]string),
+		Images:       make(map[string]string),
+		RegistryAuth: make(map[string]*RegistryAuth),
 	}
 	for k, v := range base.Images {
 		merged.Images[k] = v
 	}
 	for k, v := range override.Images {
 		merged.Images[k] = v
+	}
+	for k, v := range base.RegistryAuth {
+		merged.RegistryAuth[k] = v
+	}
+	for k, v := range override.RegistryAuth {
+		merged.RegistryAuth[k] = v
 	}
 	return merged
 }

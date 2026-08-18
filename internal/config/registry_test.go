@@ -81,7 +81,7 @@ func TestPrivateRegistriesMultiple(t *testing.T) {
 }
 
 func TestContainerdPatch(t *testing.T) {
-	patch := ContainerdPatch([]string{"registry.airgap:5000"})
+	patch := ContainerdPatch([]string{"registry.airgap:5000"}, nil)
 
 	if !strings.Contains(patch, `insecure_skip_verify = true`) {
 		t.Error("patch should contain insecure_skip_verify")
@@ -95,8 +95,39 @@ func TestContainerdPatch(t *testing.T) {
 }
 
 func TestContainerdPatchEmpty(t *testing.T) {
-	patch := ContainerdPatch(nil)
+	patch := ContainerdPatch(nil, nil)
 	if patch != "" {
 		t.Errorf("expected empty patch for nil registries, got %q", patch)
+	}
+}
+
+func TestContainerdPatchAuth(t *testing.T) {
+	auth := map[string]*RegistryAuth{
+		"registry.corp.com": {Username: "svc", Password: "secret"},
+	}
+	patch := ContainerdPatch(nil, auth)
+
+	if !strings.Contains(patch, `[plugins."io.containerd.grpc.v1.cri".registry.configs."registry.corp.com".auth]`) {
+		t.Error("patch should contain auth section for registry")
+	}
+	if !strings.Contains(patch, `username = "svc"`) {
+		t.Error("patch should contain username")
+	}
+	if !strings.Contains(patch, `password = "secret"`) {
+		t.Error("patch should contain password")
+	}
+}
+
+func TestContainerdPatchInsecureAndAuth(t *testing.T) {
+	auth := map[string]*RegistryAuth{
+		"registry.airgap:5000": {Username: "user", Password: "pass"},
+	}
+	patch := ContainerdPatch([]string{"registry.airgap:5000"}, auth)
+
+	if !strings.Contains(patch, `insecure_skip_verify = true`) {
+		t.Error("patch should contain insecure config")
+	}
+	if !strings.Contains(patch, `username = "user"`) {
+		t.Error("patch should contain auth config")
 	}
 }

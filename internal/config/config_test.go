@@ -62,3 +62,55 @@ func TestMerge(t *testing.T) {
 		t.Errorf("expected base for vault, got %q", merged.Images["vault"])
 	}
 }
+
+func TestLoadRegistryAuth(t *testing.T) {
+	dir := t.TempDir()
+	configFile := filepath.Join(dir, "config.yaml")
+	os.WriteFile(configFile, []byte(`images:
+  cilium: registry.corp.com/cilium:v1
+registryAuth:
+  registry.corp.com:
+    username: svc
+    password: secret
+`), 0644)
+
+	cfg, err := Load(configFile)
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if cfg.RegistryAuth == nil {
+		t.Fatal("expected registryAuth to be loaded")
+	}
+	auth := cfg.RegistryAuth["registry.corp.com"]
+	if auth == nil {
+		t.Fatal("expected auth entry for registry.corp.com")
+	}
+	if auth.Username != "svc" || auth.Password != "secret" {
+		t.Errorf("unexpected auth: %+v", auth)
+	}
+}
+
+func TestMergeRegistryAuth(t *testing.T) {
+	base := &Config{
+		Images: map[string]string{"cilium": "quay.io/cilium/cilium:v1"},
+		RegistryAuth: map[string]*RegistryAuth{
+			"registry.a.com": {Username: "a", Password: "a-pass"},
+		},
+	}
+	override := &Config{
+		Images: map[string]string{},
+		RegistryAuth: map[string]*RegistryAuth{
+			"registry.a.com": {Username: "a-new", Password: "a-new-pass"},
+			"registry.b.com": {Username: "b", Password: "b-pass"},
+		},
+	}
+
+	merged := Merge(base, override)
+
+	if merged.RegistryAuth["registry.a.com"].Username != "a-new" {
+		t.Error("expected override to win for registry.a.com")
+	}
+	if merged.RegistryAuth["registry.b.com"] == nil {
+		t.Error("expected registry.b.com from override")
+	}
+}

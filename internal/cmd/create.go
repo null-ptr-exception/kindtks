@@ -74,14 +74,23 @@ func runProfileFunc(p *profile.Profile, funcName string, cfg *config.Config) err
 	kindCfgPath := filepath.Join(p.Dir, "kind-config.yaml")
 	if cfg != nil {
 		registries := cfg.PrivateRegistries()
-		if len(registries) > 0 {
-			patched, cleanup, err := kindconfig.PatchForRegistries(kindCfgPath, registries)
+		if len(registries) > 0 || len(cfg.RegistryAuth) > 0 {
+			patched, cleanup, err := kindconfig.PatchForRegistries(kindCfgPath, registries, cfg.RegistryAuth)
 			if err != nil {
 				return fmt.Errorf("patching kind config for private registries: %w", err)
 			}
 			defer cleanup()
 			kindCfgPath = patched
-			fmt.Printf("Trusting private registries: %s\n", strings.Join(registries, ", "))
+			if len(registries) > 0 {
+				fmt.Printf("Trusting private registries: %s\n", strings.Join(registries, ", "))
+			}
+			if len(cfg.RegistryAuth) > 0 {
+				authRegs := make([]string, 0, len(cfg.RegistryAuth))
+				for reg := range cfg.RegistryAuth {
+					authRegs = append(authRegs, reg)
+				}
+				fmt.Printf("Configuring registry auth: %s\n", strings.Join(authRegs, ", "))
+			}
 		}
 	}
 

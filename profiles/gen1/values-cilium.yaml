@@ -8,8 +8,7 @@ image:
 operator:
   replicas: 1
   image:
-    repository: ${IMAGE_CILIUM_OPERATOR_REPO}
-    tag: ${IMAGE_CILIUM_OPERATOR_TAG}
+    override: ${IMAGE_CILIUM_OPERATOR_REPO}:${IMAGE_CILIUM_OPERATOR_TAG}
     useDigest: false
 preflight:
   image:

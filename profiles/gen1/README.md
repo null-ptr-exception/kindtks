@@ -102,7 +102,7 @@ kindtks config gen1
 ```yaml
 images:
     cilium: quay.io/cilium/cilium:v1.13.10
-    cilium-operator: quay.io/cilium/operator:v1.13.10
+    cilium-operator: quay.io/cilium/operator-generic:v1.13.10
     istio-pilot: docker.io/istio/pilot:1.16.7
     istio-proxy: docker.io/istio/proxyv2:1.16.7
     vault: docker.io/hashicorp/vault:2.0.3
@@ -114,8 +114,6 @@ Override any image by passing `--config`:
 ```bash
 kindtks create gen1 --config my-config.yaml
 ```
-
-Note: `cilium-operator` must use the base image name (`quay.io/cilium/operator`) without `-generic` — the Helm chart appends `-generic` automatically.
 
 ## Cluster Lifecycle
 

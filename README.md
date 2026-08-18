@@ -64,7 +64,7 @@ Example config for an air-gapped registry:
 ```yaml
 images:
     cilium: registry.internal:5000/quay.io/cilium/cilium:v1.13.10
-    cilium-operator: registry.internal:5000/quay.io/cilium/operator:v1.13.10
+    cilium-operator: registry.internal:5000/quay.io/cilium/operator-generic:v1.13.10
     istio-pilot: registry.internal:5000/docker.io/istio/pilot:1.16.7
     istio-proxy: registry.internal:5000/docker.io/istio/proxyv2:1.16.7
     vault: registry.internal:5000/hashicorp/vault:2.0.3
@@ -72,6 +72,21 @@ images:
 ```
 
 Private registries are automatically trusted as insecure (HTTP) in the Kind node's containerd config. The following well-known registries are excluded from this auto-trust: docker.io, quay.io, ghcr.io, gcr.io, registry.k8s.io, k8s.gcr.io, mcr.microsoft.com, public.ecr.aws. Everything else is treated as private.
+
+### Registry Authentication
+
+If your registry requires authentication, add a `registryAuth` section to the config:
+
+```yaml
+images:
+    cilium: registry.corp.com/cilium/cilium:v1.13.10
+registryAuth:
+    registry.corp.com:
+        username: svc-account
+        password: secret-token
+```
+
+Credentials are injected into the Kind node's containerd config. This works independently of insecure registry auto-trust — authenticated HTTPS registries are supported.
 
 Note: the Kind node image (`kindest/node`) must also be available locally or in your registry. Pull and tag it before running `kindtks create`:
 

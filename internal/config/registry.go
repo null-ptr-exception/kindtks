@@ -76,18 +76,29 @@ func (c *Config) PrivateRegistries() []string {
 }
 
 // ContainerdPatch generates a containerd config TOML patch that configures
-// insecure (HTTP) access for the given registries.
-func ContainerdPatch(registries []string) string {
-	if len(registries) == 0 {
+// insecure (HTTP) access for the given registries and authentication for
+// registries with credentials.
+func ContainerdPatch(registries []string, auth map[string]*RegistryAuth) string {
+	if len(registries) == 0 && len(auth) == 0 {
 		return ""
 	}
 
+	insecureSet := make(map[string]bool)
 	var b strings.Builder
 	for _, reg := range registries {
+		insecureSet[reg] = true
 		fmt.Fprintf(&b, "[plugins.\"io.containerd.grpc.v1.cri\".registry.configs.%q.tls]\n", reg)
 		fmt.Fprintf(&b, "  insecure_skip_verify = true\n")
 		fmt.Fprintf(&b, "[plugins.\"io.containerd.grpc.v1.cri\".registry.mirrors.%q]\n", reg)
 		fmt.Fprintf(&b, "  endpoint = [\"http://%s\"]\n", reg)
+	}
+	for reg, cred := range auth {
+		if cred == nil {
+			continue
+		}
+		fmt.Fprintf(&b, "[plugins.\"io.containerd.grpc.v1.cri\".registry.configs.%q.auth]\n", reg)
+		fmt.Fprintf(&b, "  username = %q\n", cred.Username)
+		fmt.Fprintf(&b, "  password = %q\n", cred.Password)
 	}
 	return b.String()
 }

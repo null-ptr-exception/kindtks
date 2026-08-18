@@ -13,14 +13,15 @@ type kindCluster struct {
 	ContainerdConfigPatches []string `yaml:"containerdConfigPatches,omitempty"`
 }
 
-// PatchForRegistries reads a kind-config YAML file and, if registries is
-// non-empty, appends a containerdConfigPatches entry for insecure HTTP access.
+// PatchForRegistries reads a kind-config YAML file and, if registries or auth
+// entries are present, appends a containerdConfigPatches entry for insecure
+// HTTP access and/or registry authentication.
 // Returns the path to use — the original file when no patch is needed, or a
 // temp file with the patched config.
-func PatchForRegistries(kindConfigPath string, registries []string) (string, func(), error) {
+func PatchForRegistries(kindConfigPath string, registries []string, auth map[string]*config.RegistryAuth) (string, func(), error) {
 	noop := func() {}
 
-	if len(registries) == 0 {
+	if len(registries) == 0 && len(auth) == 0 {
 		return kindConfigPath, noop, nil
 	}
 
@@ -34,7 +35,7 @@ func PatchForRegistries(kindConfigPath string, registries []string) (string, fun
 		return "", noop, fmt.Errorf("parsing kind config: %w", err)
 	}
 
-	patch := config.ContainerdPatch(registries)
+	patch := config.ContainerdPatch(registries, auth)
 
 	// Find or create containerdConfigPatches in the YAML
 	root := doc.Content[0] // mapping node
