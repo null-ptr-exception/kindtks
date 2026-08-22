@@ -131,3 +131,53 @@ func TestContainerdPatchInsecureAndAuth(t *testing.T) {
 		t.Error("patch should contain auth config")
 	}
 }
+
+func TestContainerdPatchNilAuthEntry(t *testing.T) {
+	auth := map[string]*RegistryAuth{
+		"registry.corp.com": nil,
+	}
+	patch := ContainerdPatch(nil, auth)
+	if patch != "" {
+		t.Errorf("expected empty patch for nil auth entry, got %q", patch)
+	}
+}
+
+func TestContainerdPatchEmptyCredentials(t *testing.T) {
+	auth := map[string]*RegistryAuth{
+		"registry.corp.com": {Username: "", Password: ""},
+	}
+	patch := ContainerdPatch(nil, auth)
+
+	if !strings.Contains(patch, `username = ""`) {
+		t.Error("patch should contain empty username")
+	}
+	if !strings.Contains(patch, `password = ""`) {
+		t.Error("patch should contain empty password")
+	}
+}
+
+func TestContainerdPatchMultipleAuth(t *testing.T) {
+	auth := map[string]*RegistryAuth{
+		"registry.a.com":   {Username: "a-user", Password: "a-pass"},
+		"registry.b.com:5000": {Username: "b-user", Password: "b-pass"},
+	}
+	patch := ContainerdPatch(nil, auth)
+
+	if !strings.Contains(patch, `username = "a-user"`) {
+		t.Error("patch should contain auth for registry.a.com")
+	}
+	if !strings.Contains(patch, `username = "b-user"`) {
+		t.Error("patch should contain auth for registry.b.com:5000")
+	}
+}
+
+func TestContainerdPatchSpecialCharsInPassword(t *testing.T) {
+	auth := map[string]*RegistryAuth{
+		"registry.corp.com": {Username: "svc", Password: `p@ss"w0rd\n`},
+	}
+	patch := ContainerdPatch(nil, auth)
+
+	if !strings.Contains(patch, `password = "p@ss\"w0rd\\n"`) {
+		t.Errorf("patch should properly escape special chars, got:\n%s", patch)
+	}
+}

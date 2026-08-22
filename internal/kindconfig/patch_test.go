@@ -132,3 +132,32 @@ func TestPatchForRegistries_AuthOnly(t *testing.T) {
 		t.Error("patched config should preserve original fields")
 	}
 }
+
+func TestPatchForRegistries_InsecureAndAuth(t *testing.T) {
+	dir := t.TempDir()
+	cfgFile := filepath.Join(dir, "kind-config.yaml")
+	os.WriteFile(cfgFile, []byte(baseKindConfig), 0644)
+
+	auth := map[string]*config.RegistryAuth{
+		"registry.airgap:5000": {Username: "user", Password: "pass"},
+	}
+	path, cleanup, err := PatchForRegistries(cfgFile, []string{"registry.airgap:5000"}, auth)
+	defer cleanup()
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, _ := os.ReadFile(path)
+	content := string(data)
+
+	if !strings.Contains(content, "insecure_skip_verify") {
+		t.Error("patched config should contain insecure config")
+	}
+	if !strings.Contains(content, `username = "user"`) {
+		t.Error("patched config should contain auth config")
+	}
+	if !strings.Contains(content, "disableDefaultCNI") {
+		t.Error("patched config should preserve original fields")
+	}
+}
