@@ -1,0 +1,35 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: netapp-dc1
+provisioner: rancher.io/local-path
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+  - matchLabelExpressions:
+      - key: topology.kubernetes.io/zone
+        values:
+          - dc1
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: netapp-dc2
+provisioner: rancher.io/local-path
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+  - matchLabelExpressions:
+      - key: topology.kubernetes.io/zone
+        values:
+          - dc2
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: netapp-dc3
+provisioner: rancher.io/local-path
+volumeBindingMode: WaitForFirstConsumer
+allowedTopologies:
+  - matchLabelExpressions:
+      - key: topology.kubernetes.io/zone
+        values:
+          - dc3

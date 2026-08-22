@@ -49,6 +49,7 @@ create() {
 
   echo "==> Waiting for nodes to be ready..."
   kubectl wait --for=condition=Ready nodes --all --timeout=600s
+  install_storageclasses
   install_istio
   install_vault
   install_vault_secrets_operator
@@ -69,6 +70,11 @@ delete() {
   echo "==> Deleting Kind cluster '$CLUSTER_NAME'..."
   kind delete cluster --name "$CLUSTER_NAME"
   echo "==> Cluster '$CLUSTER_NAME' deleted."
+}
+
+install_storageclasses() {
+  echo "==> Creating per-DC StorageClasses (netapp-dc1, netapp-dc2, netapp-dc3)..."
+  kubectl apply -f "$KINDTKS_PROFILE_DIR/storageclasses.yaml"
 }
 
 install_cilium() {

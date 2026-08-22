@@ -1,6 +1,6 @@
 # gen1
 
-Single-node cluster with Cilium CNI, Istio service mesh, Vault (dev mode), and Vault Secrets Operator.
+3-node cluster (1 control-plane + 2 workers) with Cilium CNI, Istio service mesh, Vault (dev mode), Vault Secrets Operator, and per-DC StorageClasses.
 
 | Component | Version |
 |---|---|
@@ -12,7 +12,7 @@ Single-node cluster with Cilium CNI, Istio service mesh, Vault (dev mode), and V
 
 ## Requirements
 
-Minimum 4 GB RAM recommended. Runs on a single-CPU node (Istio resource requests are nulled out; istiod falls back to 10m CPU).
+Minimum 6 GB RAM recommended (3 nodes). Istio resource requests are nulled out; istiod falls back to 10m CPU.
 
 ## Quick Start
 
@@ -92,6 +92,53 @@ kubectl get secret my-app -o jsonpath='{.data.key}' | base64 -d
 ```
 
 The VaultSecret CR creates a Kubernetes Secret in the same namespace. Sync typically completes within 10 seconds.
+
+## Nodes and Topology
+
+The cluster has 3 nodes labeled by datacenter:
+
+| Node | Role | Zone Label |
+|---|---|---|
+| gen1-control-plane | control-plane | dc1 |
+| gen1-worker | worker | dc2 |
+| gen1-worker2 | worker | dc3 |
+
+## StorageClasses
+
+Per-DC StorageClasses simulate topology-aware storage (e.g. NetApp per-datacenter). PVCs using a DC-specific class will only bind on nodes in that zone.
+
+| StorageClass | Zone | Binding Mode |
+|---|---|---|
+| netapp-dc1 | dc1 | WaitForFirstConsumer |
+| netapp-dc2 | dc2 | WaitForFirstConsumer |
+| netapp-dc3 | dc3 | WaitForFirstConsumer |
+
+All use the `rancher.io/local-path` provisioner (Kind's built-in). The `standard` StorageClass remains available and binds to any node.
+
+```bash
+# Verify StorageClasses
+kubectl get sc
+
+# Test: PVC bound to dc2
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-dc2
+spec:
+  storageClassName: netapp-dc2
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Mi
+EOF
+
+# Pod must land on a dc2 node for the PVC to bind
+kubectl run test-dc2 --image=busybox --restart=Never \
+  --overrides='{"spec":{"volumes":[{"name":"v","persistentVolumeClaim":{"claimName":"test-dc2"}}],"containers":[{"name":"c","image":"busybox","command":["sleep","10"],"volumeMounts":[{"name":"v","mountPath":"/data"}]}]}}'
+kubectl get pvc test-dc2
+# STATUS should be Bound, node should be in dc2
+```
 
 ## Config
 
