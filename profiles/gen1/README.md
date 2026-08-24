@@ -21,11 +21,26 @@ kindtks create gen1
 kubectl config use-context kind-gen1
 ```
 
-After creation, services are accessible at `http://<app>.kindtks.localhost:30080`. Browsers (Chrome, Edge) resolve `*.localhost` to 127.0.0.1 automatically. For curl or other tools, add entries to `/etc/hosts`:
+After creation, services are accessible at:
+
+- HTTP: `http://<app>.kindtks.localhost:30080`
+- HTTPS: `https://<app>.kindtks.localhost:30443` (self-signed certificate)
+
+Browsers (Chrome, Edge) resolve `*.localhost` to 127.0.0.1 automatically. For curl or other tools, add entries to `/etc/hosts`:
 
 ```
 127.0.0.1 vault.kindtks.localhost my-app.kindtks.localhost
 ```
+
+### Remote access via `*.kindtks.local`
+
+The gateway also accepts `*.kindtks.local` for access from other machines. On the remote machine, add `/etc/hosts` entries pointing to the cluster host IP:
+
+```
+192.168.1.100 vault.kindtks.local my-app.kindtks.local
+```
+
+Both HTTP (`:30080`) and HTTPS (`:30443`) work with the `.kindtks.local` domain.
 
 ## Deploying a Service
 
@@ -46,6 +61,7 @@ metadata:
 spec:
   hosts:
     - echo.kindtks.localhost
+    - echo.kindtks.local
   gateways:
     - istio-ingress/kindtks
   http:
@@ -60,7 +76,7 @@ curl -s http://echo.kindtks.localhost:30080
 # → hello
 ```
 
-The gateway `istio-ingress/kindtks` is a wildcard for `*.kindtks.localhost` and works across namespaces.
+The gateway `istio-ingress/kindtks` is a wildcard for `*.kindtks.localhost` and `*.kindtks.local`, and works across namespaces. Include both hosts in your VirtualService to support both local and remote access.
 
 Istio sidecar injection is not enabled by default. To enable it for a namespace: `kubectl label namespace <ns> istio-injection=enabled`.
 

@@ -13,3 +13,14 @@ spec:
         protocol: HTTP
       hosts:
         - "*.kindtks.localhost"
+        - "*.kindtks.local"
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: kindtks-tls
+      hosts:
+        - "*.kindtks.localhost"
+        - "*.kindtks.local"

@@ -59,11 +59,16 @@ create() {
   echo "    kubectl config use-context kind-$CLUSTER_NAME"
   echo ""
   echo "    Vault UI: http://vault.kindtks.localhost:30080"
+  echo "              https://vault.kindtks.localhost:30443 (self-signed)"
   echo ""
   echo "    To expose a service, create a VirtualService:"
   echo "      gateways: [istio-ingress/kindtks]"
-  echo "      hosts: [<app>.kindtks.localhost]"
-  echo "    Then access it at: http://<app>.kindtks.localhost:30080"
+  echo "      hosts: [<app>.kindtks.localhost, <app>.kindtks.local]"
+  echo "    Then access it at:"
+  echo "      http://<app>.kindtks.localhost:30080"
+  echo "      https://<app>.kindtks.localhost:30443"
+  echo ""
+  echo "    Remote access: use *.kindtks.local with /etc/hosts on remote machines"
 }
 
 delete() {
@@ -97,6 +102,17 @@ install_istio() {
 
   echo "==> Waiting for Istio Ingress Gateway to be ready..."
   kubectl -n istio-ingress rollout status deployment/istio-ingress --timeout=600s
+
+  echo "==> Creating TLS certificate for *.kindtks.localhost / *.kindtks.local..."
+  local certdir
+  certdir=$(mktemp -d)
+  openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
+    -keyout "$certdir/tls.key" -out "$certdir/tls.crt" -nodes -days 3650 \
+    -subj "/CN=kindtks.localhost" \
+    -addext "subjectAltName=DNS:*.kindtks.localhost,DNS:kindtks.localhost,DNS:*.kindtks.local,DNS:kindtks.local" 2>/dev/null
+  kubectl -n istio-ingress create secret tls kindtks-tls \
+    --cert="$certdir/tls.crt" --key="$certdir/tls.key"
+  rm -rf "$certdir"
 
   echo "==> Creating wildcard Gateway (*.kindtks.localhost)..."
   kubectl apply -f "$KINDTKS_PROFILE_DIR/gateway.yaml"
