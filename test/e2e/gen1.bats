@@ -56,10 +56,26 @@ kindtks() {
   assert_output --partial "$CLUSTER_NAME"
 }
 
-@test "node is Ready" {
-  run kube get nodes -o jsonpath='{.items[0].status.conditions[?(@.type=="Ready")].status}'
+@test "all 3 nodes are Ready" {
+  run kube get nodes -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}'
   assert_success
-  assert_output "True"
+  local ready_count
+  ready_count=$(echo "$output" | grep -c "True")
+  assert [ "$ready_count" -eq 3 ]
+}
+
+@test "nodes have correct zone labels" {
+  run kube get node "${CLUSTER_NAME}-control-plane" -o jsonpath='{.metadata.labels.topology\.kubernetes\.io/zone}'
+  assert_success
+  assert_output "dc1"
+
+  run kube get node "${CLUSTER_NAME}-worker" -o jsonpath='{.metadata.labels.topology\.kubernetes\.io/zone}'
+  assert_success
+  assert_output "dc2"
+
+  run kube get node "${CLUSTER_NAME}-worker2" -o jsonpath='{.metadata.labels.topology\.kubernetes\.io/zone}'
+  assert_success
+  assert_output "dc3"
 }
 
 # --- Cilium ---
@@ -104,10 +120,32 @@ kindtks() {
   assert_output "30443"
 }
 
-@test "wildcard gateway exists for *.kindtks.localhost" {
-  run kube -n istio-ingress get gateway kindtks -o jsonpath='{.spec.servers[0].hosts[0]}'
+@test "gateway accepts *.kindtks.localhost and *.kindtks.local" {
+  run kube -n istio-ingress get gateway kindtks -o jsonpath='{.spec.servers[0].hosts[*]}'
   assert_success
-  assert_output "*.kindtks.localhost"
+  assert_output --partial "*.kindtks.localhost"
+  assert_output --partial "*.kindtks.local"
+
+  run kube -n istio-ingress get gateway kindtks -o jsonpath='{.spec.servers[1].hosts[*]}'
+  assert_success
+  assert_output --partial "*.kindtks.localhost"
+  assert_output --partial "*.kindtks.local"
+}
+
+@test "gateway has HTTPS server with TLS" {
+  run kube -n istio-ingress get gateway kindtks -o jsonpath='{.spec.servers[1].port.protocol}'
+  assert_success
+  assert_output "HTTPS"
+
+  run kube -n istio-ingress get gateway kindtks -o jsonpath='{.spec.servers[1].tls.credentialName}'
+  assert_success
+  assert_output "kindtks-tls"
+}
+
+@test "kindtks-tls secret exists in istio-ingress" {
+  run kube -n istio-ingress get secret kindtks-tls -o jsonpath='{.type}'
+  assert_success
+  assert_output "kubernetes.io/tls"
 }
 
 # --- Vault ---
@@ -187,6 +225,103 @@ YAML
   # Cleanup
   kube delete vaultsecret e2e-test -n default
   kube -n vault exec vault-0 -- vault kv delete secret/e2e-test
+}
+
+# --- StorageClasses ---
+
+@test "per-DC StorageClasses exist" {
+  for dc in dc1 dc2 dc3; do
+    run kube get sc "netapp-${dc}" -o jsonpath='{.provisioner}'
+    assert_success
+    assert_output "rancher.io/local-path"
+  done
+}
+
+@test "StorageClasses have correct topology constraints" {
+  for dc in dc1 dc2 dc3; do
+    run kube get sc "netapp-${dc}" -o jsonpath='{.allowedTopologies[0].matchLabelExpressions[0].values[0]}'
+    assert_success
+    assert_output "${dc}"
+  done
+}
+
+@test "StorageClasses use WaitForFirstConsumer" {
+  for dc in dc1 dc2 dc3; do
+    run kube get sc "netapp-${dc}" -o jsonpath='{.volumeBindingMode}'
+    assert_success
+    assert_output "WaitForFirstConsumer"
+  done
+}
+
+@test "PVC with netapp-dc2 binds to dc2 node" {
+  kube apply -f - <<'YAML'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-dc2-e2e
+  namespace: default
+spec:
+  storageClassName: netapp-dc2
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Mi
+YAML
+
+  kube run test-dc2-e2e --image=busybox --restart=Never \
+    --overrides='{"spec":{"volumes":[{"name":"v","persistentVolumeClaim":{"claimName":"test-dc2-e2e"}}],"containers":[{"name":"c","image":"busybox","command":["sleep","30"],"volumeMounts":[{"name":"v","mountPath":"/data"}]}]}}'
+
+  kube wait --for=condition=Ready pod/test-dc2-e2e --timeout=60s
+
+  run kube get pvc test-dc2-e2e -o jsonpath='{.status.phase}'
+  assert_success
+  assert_output "Bound"
+
+  run kube get pod test-dc2-e2e -o jsonpath='{.spec.nodeName}'
+  assert_success
+  assert_output --partial "worker"
+
+  local node="$output"
+  run kube get node "$node" -o jsonpath='{.metadata.labels.topology\.kubernetes\.io/zone}'
+  assert_success
+  assert_output "dc2"
+
+  kube delete pod test-dc2-e2e --force --grace-period=0
+  kube delete pvc test-dc2-e2e
+}
+
+# --- HTTPS ---
+
+@test "vault UI is reachable via HTTPS" {
+  run curl -sk -o /dev/null -w '%{http_code}' -L \
+    --resolve vault.kindtks.localhost:30443:127.0.0.1 \
+    https://vault.kindtks.localhost:30443
+  assert_success
+  assert_output "200"
+}
+
+@test "TLS cert covers *.kindtks.local" {
+  run bash -c "echo | openssl s_client -connect 127.0.0.1:30443 -servername vault.kindtks.local 2>/dev/null | openssl x509 -noout -ext subjectAltName"
+  assert_success
+  assert_output --partial "*.kindtks.local"
+}
+
+# --- *.kindtks.local routing ---
+
+@test "vault UI is reachable via *.kindtks.local HTTP" {
+  run curl -s -o /dev/null -w '%{http_code}' -L \
+    --resolve vault.kindtks.local:30080:127.0.0.1 \
+    http://vault.kindtks.local:30080
+  assert_success
+  assert_output "200"
+}
+
+@test "vault UI is reachable via *.kindtks.local HTTPS" {
+  run curl -sk -o /dev/null -w '%{http_code}' -L \
+    --resolve vault.kindtks.local:30443:127.0.0.1 \
+    https://vault.kindtks.local:30443
+  assert_success
+  assert_output "200"
 }
 
 # --- Echo service smoke test ---

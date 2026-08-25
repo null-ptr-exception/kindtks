@@ -90,6 +90,39 @@ registryAuth:
 	}
 }
 
+func TestMergeNilMaps(t *testing.T) {
+	base := &Config{}
+	override := &Config{
+		Images: map[string]string{"cilium": "corp/cilium:v1"},
+	}
+
+	merged := Merge(base, override)
+
+	if merged.Images["cilium"] != "corp/cilium:v1" {
+		t.Errorf("expected cilium from override, got %q", merged.Images["cilium"])
+	}
+	if merged.RegistryAuth == nil {
+		t.Error("expected RegistryAuth to be initialized, not nil")
+	}
+}
+
+func TestMergeNilOverride(t *testing.T) {
+	base := &Config{
+		Images:       map[string]string{"cilium": "quay.io/cilium:v1"},
+		RegistryAuth: map[string]*RegistryAuth{"r.io": {Username: "u", Password: "p"}},
+	}
+	override := &Config{}
+
+	merged := Merge(base, override)
+
+	if merged.Images["cilium"] != "quay.io/cilium:v1" {
+		t.Errorf("expected base cilium preserved, got %q", merged.Images["cilium"])
+	}
+	if merged.RegistryAuth["r.io"] == nil {
+		t.Error("expected base registryAuth preserved")
+	}
+}
+
 func TestMergeRegistryAuth(t *testing.T) {
 	base := &Config{
 		Images: map[string]string{"cilium": "quay.io/cilium/cilium:v1"},
