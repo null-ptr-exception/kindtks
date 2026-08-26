@@ -63,6 +63,7 @@ Example config for an air-gapped registry:
 
 ```yaml
 images:
+    kind-node: registry.internal:5000/kindest/node:v1.24.17
     cilium: registry.internal:5000/quay.io/cilium/cilium:v1.13.10
     cilium-operator: registry.internal:5000/quay.io/cilium/operator-generic:v1.13.10
     istio-pilot: registry.internal:5000/docker.io/istio/pilot:1.16.7
@@ -88,9 +89,8 @@ registryAuth:
 
 Credentials are injected into the Kind node's containerd config. This works independently of insecure registry auto-trust — authenticated HTTPS registries are supported.
 
-Note: the Kind node image (`kindest/node`) must also be available locally or in your registry. Pull and tag it before running `kindtks create`:
+Note: `kind` pulls the node image from the local Docker daemon, not from inside the cluster. In an air-gapped environment, pre-pull it so it's available locally:
 
 ```bash
 docker pull registry.internal:5000/kindest/node:v1.24.17
-docker tag registry.internal:5000/kindest/node:v1.24.17 kindest/node:v1.24.17
 ```

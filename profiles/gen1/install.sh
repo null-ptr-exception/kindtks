@@ -1,7 +1,6 @@
 REQUIRES="kind helm kubectl"
 
 CLUSTER_NAME="gen1"
-KIND_IMAGE="kindest/node:v1.24.17"
 
 # Split IMAGE_* env vars into *_REPO and *_TAG for helm values
 split_image_refs() {
@@ -42,7 +41,7 @@ create() {
   echo "==> Creating Kind cluster '$CLUSTER_NAME' (k8s 1.24)..."
   kind create cluster \
     --name "$CLUSTER_NAME" \
-    --image "$KIND_IMAGE" \
+    --image "${IMAGE_KIND_NODE}" \
     --config "${KINDTKS_KIND_CONFIG:-$KINDTKS_PROFILE_DIR/kind-config.yaml}"
 
   install_cilium

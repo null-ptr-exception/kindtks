@@ -164,6 +164,7 @@ kindtks config gen1
 
 ```yaml
 images:
+    kind-node: kindest/node:v1.24.17
     cilium: quay.io/cilium/cilium:v1.13.10
     cilium-operator: quay.io/cilium/operator-generic:v1.13.10
     istio-pilot: docker.io/istio/pilot:1.16.7
