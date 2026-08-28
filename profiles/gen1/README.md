@@ -179,6 +179,29 @@ Override any image by passing `--config`:
 kindtks create gen1 --config my-config.yaml
 ```
 
+Private registries (anything not docker.io, quay.io, ghcr.io, etc.) are automatically trusted as insecure (HTTP) in the Kind nodes' containerd config.
+
+### Registry Authentication
+
+If your registry requires authentication, add a `registryAuth` section to the config:
+
+```yaml
+images:
+    kind-node: registry.internal:5000/kindest/node:v1.24.17
+    cilium: registry.internal:5000/quay.io/cilium/cilium:v1.13.10
+    # ... other images ...
+registryAuth:
+    registry.internal:5000:
+        username: myuser
+        password: mypass
+```
+
+Credentials are injected into the Kind nodes' containerd config. The `kind-node` image is pulled by Docker on the host (not by containerd inside the cluster), so in an air-gapped environment, pre-pull it:
+
+```bash
+docker pull registry.internal:5000/kindest/node:v1.24.17
+```
+
 ## Cluster Lifecycle
 
 If a cluster named `gen1` already exists, `kindtks create gen1` will fail. Delete first with `kindtks delete gen1`, which removes the Kind cluster and all associated containers.
