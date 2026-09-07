@@ -7,6 +7,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func SetVersion(v string) {
+	rootCmd.Version = v
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "kindtks",
 	Short: "kindtks - an opinionated customization of kind kubernetes with many thanks",
