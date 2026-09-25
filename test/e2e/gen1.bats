@@ -27,7 +27,13 @@ setup_file() {
     "${E2E_HOME}/.local/share/kindtks/profiles/gen1/install.sh"
 
   # Create the cluster
-  HOME="$E2E_HOME" "${E2E_HOME}/.local/bin/kindtks" create gen1
+  cat > "${BATS_FILE_TMPDIR}/config.yaml" <<'EOF'
+profiles:
+  gen1:
+    gateway:
+      extraHosts: ["*.example.net"]
+EOF
+  HOME="$E2E_HOME" "${E2E_HOME}/.local/bin/kindtks" create gen1 --config "${BATS_FILE_TMPDIR}/config.yaml"
 
   # Export KUBECONFIG so kubectl can find the cluster
   export KUBECONFIG="${E2E_HOME}/.kube/config"
@@ -140,6 +146,13 @@ kindtks() {
   run kube -n istio-ingress get gateway kindtks -o jsonpath='{.spec.servers[1].tls.credentialName}'
   assert_success
   assert_output "kindtks-tls"
+}
+
+@test "gateway HTTP server includes extra hosts from config" {
+  run kube -n istio-ingress get gateway kindtks -o jsonpath='{.spec.servers[0].hosts}'
+  assert_output --partial '*.example.net'
+  run kube -n istio-ingress get gateway kindtks -o jsonpath='{.spec.servers[1].hosts}'
+  refute_output --partial 'example.net'
 }
 
 @test "kindtks-tls secret exists in istio-ingress" {
@@ -387,6 +400,7 @@ metadata:
 spec:
   hosts:
     - echo.kindtks.localhost
+    - echo.example.net
   gateways:
     - istio-ingress/kindtks
   http:
@@ -412,6 +426,10 @@ YAML
   done
 
   run curl -s --resolve echo.kindtks.localhost:30080:127.0.0.1 http://echo.kindtks.localhost:30080
+  assert_success
+  assert_output --partial "kindtks-ok"
+
+  run curl -s --resolve echo.example.net:30080:127.0.0.1 http://echo.example.net:30080
   assert_success
   assert_output --partial "kindtks-ok"
 
