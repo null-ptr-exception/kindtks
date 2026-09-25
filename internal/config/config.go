@@ -25,9 +25,8 @@ type Registry struct {
 }
 
 type Config struct {
-	Images       map[string]string        `yaml:"images"`
-	RegistryAuth map[string]*RegistryAuth `yaml:"registryAuth,omitempty"`
-	Registries   map[string]*Registry     `yaml:"registries,omitempty"`
+	Images     map[string]string    `yaml:"images"`
+	Registries map[string]*Registry `yaml:"registries,omitempty"`
 }
 
 func Load(path string) (*Config, error) {
@@ -79,21 +78,14 @@ func validateRegistryName(name string) error {
 
 func Merge(base, override *Config) *Config {
 	merged := &Config{
-		Images:       make(map[string]string),
-		RegistryAuth: make(map[string]*RegistryAuth),
-		Registries:   make(map[string]*Registry),
+		Images:     make(map[string]string),
+		Registries: make(map[string]*Registry),
 	}
 	for k, v := range base.Images {
 		merged.Images[k] = v
 	}
 	for k, v := range override.Images {
 		merged.Images[k] = v
-	}
-	for k, v := range base.RegistryAuth {
-		merged.RegistryAuth[k] = v
-	}
-	for k, v := range override.RegistryAuth {
-		merged.RegistryAuth[k] = v
 	}
 	for _, src := range []*Config{base, override} {
 		for name, r := range src.Registries {

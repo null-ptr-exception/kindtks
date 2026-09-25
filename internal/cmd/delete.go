@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/rophy/kindtks/internal/prereq"
@@ -27,7 +28,10 @@ var deleteCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Deleting cluster(s) from profile %q...\n", name)
-		return runProfileFunc(p, "delete", nil)
+		if err := runProfileFunc(p, "delete", nil); err != nil {
+			return err
+		}
+		return os.RemoveAll(profileStateDir(name))
 	},
 }
 
