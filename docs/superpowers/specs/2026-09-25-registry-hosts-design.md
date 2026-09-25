@@ -52,7 +52,7 @@ An explicit `hosts` entry for the same registry replaces the generated file enti
 
 ## Generated host files
 
-Location: `~/.local/share/kindtks/profiles/<profile>/certs.d/<registry>/hosts.toml`.
+Location: `~/.local/share/kindtks/state/<profile>/certs.d/<registry>/hosts.toml` (kept apart from `profiles/<profile>/`, which holds the installed profile and is rewritten by `kindtks install`).
 
 - The files must persist for the cluster's lifetime: containerd reads them on every pull and after node restarts, so a temp dir (as used for the patched kind config) does not work.
 - `create` removes and rewrites the profile's `certs.d/` before running the profile.
