@@ -234,3 +234,76 @@ func TestPatch_CleanupRemovesTempFile(t *testing.T) {
 		t.Errorf("expected temp file removed, stat err = %v", err)
 	}
 }
+
+func TestPatch_EmptyNodesSequenceAddsControlPlane(t *testing.T) {
+	path := writeKindConfig(t, "kind: Cluster\napiVersion: kind.x-k8s.io/v1alpha4\nnodes: []\n")
+
+	got, cleanup, err := Patch(path, Options{CertsDir: "/state/x/certs.d"})
+	defer cleanup()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	c := readCluster(t, got)
+	if len(c.Nodes) != 1 || c.Nodes[0].Role != "control-plane" {
+		t.Fatalf("expected one control-plane node, got %+v", c.Nodes)
+	}
+	if len(c.Nodes[0].ExtraMounts) != 1 || c.Nodes[0].ExtraMounts[0].ContainerPath != ContainerCertsDir {
+		t.Errorf("expected certs.d mount, got %+v", c.Nodes[0].ExtraMounts)
+	}
+}
+
+func TestPatch_NullNodesAddsControlPlane(t *testing.T) {
+	path := writeKindConfig(t, "kind: Cluster\napiVersion: kind.x-k8s.io/v1alpha4\nnodes:\n")
+
+	got, cleanup, err := Patch(path, Options{CertsDir: "/state/x/certs.d"})
+	defer cleanup()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	c := readCluster(t, got)
+	if len(c.Nodes) != 1 || c.Nodes[0].Role != "control-plane" {
+		t.Fatalf("expected one control-plane node, got %+v", c.Nodes)
+	}
+	if len(c.Nodes[0].ExtraMounts) != 1 || c.Nodes[0].ExtraMounts[0].ContainerPath != ContainerCertsDir {
+		t.Errorf("expected certs.d mount, got %+v", c.Nodes[0].ExtraMounts)
+	}
+}
+
+func TestPatch_RejectsNonSequenceNodes(t *testing.T) {
+	path := writeKindConfig(t, "kind: Cluster\napiVersion: kind.x-k8s.io/v1alpha4\nnodes: bogus\n")
+
+	_, cleanup, err := Patch(path, Options{CertsDir: "/state/x/certs.d"})
+	defer cleanup()
+
+	if err == nil || !strings.Contains(err.Error(), "nodes") {
+		t.Fatalf("expected error naming nodes, got %v", err)
+	}
+}
+
+func TestPatch_NullExtraMountsGetsSequence(t *testing.T) {
+	path := writeKindConfig(t, "kind: Cluster\napiVersion: kind.x-k8s.io/v1alpha4\nnodes:\n  - role: control-plane\n    extraMounts:\n")
+
+	got, cleanup, err := Patch(path, Options{CertsDir: "/state/x/certs.d"})
+	defer cleanup()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	c := readCluster(t, got)
+	if len(c.Nodes[0].ExtraMounts) != 1 || c.Nodes[0].ExtraMounts[0].ContainerPath != ContainerCertsDir {
+		t.Errorf("expected certs.d mount, got %+v", c.Nodes[0].ExtraMounts)
+	}
+}
+
+func TestPatch_RejectsNonSequenceExtraMounts(t *testing.T) {
+	path := writeKindConfig(t, "kind: Cluster\napiVersion: kind.x-k8s.io/v1alpha4\nnodes:\n  - role: control-plane\n    extraMounts: bogus\n")
+
+	_, cleanup, err := Patch(path, Options{CertsDir: "/state/x/certs.d"})
+	defer cleanup()
+
+	if err == nil || !strings.Contains(err.Error(), "extraMounts") {
+		t.Fatalf("expected error naming extraMounts, got %v", err)
+	}
+}

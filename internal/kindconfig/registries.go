@@ -87,11 +87,19 @@ func Patch(kindConfigPath string, opts Options) (string, func(), error) {
 // config has no nodes.
 func addCertsMounts(root *yaml.Node, certsDir string) error {
 	nodes := mapGet(root, "nodes")
-	if nodes == nil {
+	switch {
+	case nodes == nil:
+		nodes = &yaml.Node{Kind: yaml.SequenceNode}
+		mapSet(root, "nodes", nodes)
+	case isNullNode(nodes):
+		clearToSequence(nodes)
+	case nodes.Kind != yaml.SequenceNode:
+		return fmt.Errorf("kind config nodes is not a sequence")
+	}
+	if len(nodes.Content) == 0 {
 		cp := &yaml.Node{Kind: yaml.MappingNode}
 		mapSet(cp, "role", str("control-plane"))
-		nodes = &yaml.Node{Kind: yaml.SequenceNode, Content: []*yaml.Node{cp}}
-		mapSet(root, "nodes", nodes)
+		nodes.Content = append(nodes.Content, cp)
 	}
 
 	for i, n := range nodes.Content {
@@ -99,9 +107,14 @@ func addCertsMounts(root *yaml.Node, certsDir string) error {
 			return fmt.Errorf("kind config nodes[%d] is not a mapping", i)
 		}
 		mounts := mapGet(n, "extraMounts")
-		if mounts == nil {
+		switch {
+		case mounts == nil:
 			mounts = &yaml.Node{Kind: yaml.SequenceNode}
 			mapSet(n, "extraMounts", mounts)
+		case isNullNode(mounts):
+			clearToSequence(mounts)
+		case mounts.Kind != yaml.SequenceNode:
+			return fmt.Errorf("kind config nodes[%d].extraMounts is not a sequence", i)
 		}
 		for _, m := range mounts.Content {
 			if cp := mapGet(m, "containerPath"); cp != nil && path.Clean(cp.Value) == ContainerCertsDir {
@@ -135,6 +148,21 @@ func appendPatches(root *yaml.Node, patches []string) {
 			Value: p,
 		})
 	}
+}
+
+// isNullNode reports whether n is YAML null, as written by an empty value
+// after a key (e.g. "nodes:" or "extraMounts:").
+func isNullNode(n *yaml.Node) bool {
+	return n.Kind == yaml.ScalarNode && (n.Tag == "!!null" || n.Value == "")
+}
+
+// clearToSequence turns a null node into an empty sequence in place, so
+// existing pointers to it keep working.
+func clearToSequence(n *yaml.Node) {
+	n.Kind = yaml.SequenceNode
+	n.Tag = ""
+	n.Value = ""
+	n.Content = nil
 }
 
 func mapGet(m *yaml.Node, key string) *yaml.Node {
