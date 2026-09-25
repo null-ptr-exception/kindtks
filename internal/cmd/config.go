@@ -43,13 +43,43 @@ var configCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		out, err := yaml.Marshal(map[string]any{"profiles": map[string]any{name: res.Profile}})
+		out, err := yaml.Marshal(yamlSafe(map[string]any{"profiles": map[string]any{name: res.Profile}}))
 		if err != nil {
 			return err
 		}
 		_, err = os.Stdout.Write(out)
 		return err
 	},
+}
+
+// yamlSafe walks a value decoded with json.Number (as config.Resolve
+// produces), converting numbers to int64 or float64 so yaml.Marshal renders
+// them unquoted instead of as strings.
+func yamlSafe(v any) any {
+	switch x := v.(type) {
+	case json.Number:
+		if i, err := x.Int64(); err == nil {
+			return i
+		}
+		if f, err := x.Float64(); err == nil {
+			return f
+		}
+		return x.String()
+	case map[string]any:
+		out := make(map[string]any, len(x))
+		for k, val := range x {
+			out[k] = yamlSafe(val)
+		}
+		return out
+	case []any:
+		out := make([]any, len(x))
+		for i, val := range x {
+			out[i] = yamlSafe(val)
+		}
+		return out
+	default:
+		return v
+	}
 }
 
 func init() {
