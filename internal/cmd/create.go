@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -32,68 +31,23 @@ var createCmd = &cobra.Command{
 			return fmt.Errorf("missing required tools: %s", strings.Join(missing, ", "))
 		}
 
-		cfg, err := loadProfileConfig(p)
+		res, err := config.Resolve(dir, name, configFile)
 		if err != nil {
 			return err
 		}
+		for _, w := range res.Warnings {
+			fmt.Fprintln(os.Stderr, "warning:", w)
+		}
 
 		fmt.Printf("Creating cluster(s) from profile %q...\n", name)
-		return runProfileFunc(p, "create", cfg)
-	},
-}
-
-func loadProfileConfig(p *profile.Profile) (*config.Config, error) {
-	defaultCfgPath := filepath.Join(p.Dir, "config.yaml")
-	base, err := config.Load(defaultCfgPath)
-	if err != nil {
-		return nil, fmt.Errorf("loading profile defaults: %w", err)
-	}
-
-	if configFile == "" {
-		return base, nil
-	}
-
-	override, err := config.Load(configFile)
-	if err != nil {
-		return nil, fmt.Errorf("loading config file: %w", err)
-	}
-
-	return config.Merge(base, override), nil
-}
-
-func runProfileFunc(p *profile.Profile, funcName string, cfg *config.Config) error {
-	script := fmt.Sprintf("source %q && %s", p.Path, funcName)
-	c := exec.Command("bash", "-e", "-c", script)
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-
-	kindCfgPath := filepath.Join(p.Dir, "kind-config.yaml")
-	if cfg != nil {
-		patched, cleanup, err := prepareKindConfig(kindCfgPath, cfg, profileStateDir(p.Name))
+		kindCfgPath, cleanup, err := prepareKindConfig(filepath.Join(p.Dir, "kind-config.yaml"), res.Config, profileStateDir(name))
 		if err != nil {
 			return err
 		}
 		defer cleanup()
-		kindCfgPath = patched
-	}
 
-	env := append(os.Environ(),
-		"KINDTKS_DATA_DIR="+dataDir(),
-		"KINDTKS_CHARTS_DIR="+filepath.Join(dataDir(), "charts"),
-		"KINDTKS_PROFILE_NAME="+p.Name,
-		"KINDTKS_PROFILE_DIR="+p.Dir,
-		"KINDTKS_KIND_CONFIG="+kindCfgPath,
-	)
-
-	if cfg != nil {
-		for key, image := range cfg.Images {
-			envKey := "IMAGE_" + strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
-			env = append(env, envKey+"="+image)
-		}
-	}
-
-	c.Env = env
-	return c.Run()
+		return runProfileFunc(p, "create", res, kindCfgPath)
+	},
 }
 
 func init() {

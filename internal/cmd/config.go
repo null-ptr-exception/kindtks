@@ -1,9 +1,8 @@
 package cmd
 
 import (
-	"fmt"
+	"encoding/json"
 	"os"
-	"path/filepath"
 
 	"github.com/rophy/kindtks/internal/config"
 	"github.com/rophy/kindtks/internal/profile"
@@ -11,9 +10,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var showSchema bool
+
 var configCmd = &cobra.Command{
 	Use:   "config <profile>",
-	Short: "Show default configuration for a profile",
+	Short: "Show default configuration (or its JSON schema) for a profile",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
@@ -24,13 +25,25 @@ var configCmd = &cobra.Command{
 			return err
 		}
 
-		cfgPath := filepath.Join(p.Dir, "config.yaml")
-		cfg, err := config.Load(cfgPath)
-		if err != nil {
-			return fmt.Errorf("loading profile config: %w", err)
+		if showSchema {
+			schema, err := config.ProfileSchema(p.Dir)
+			if err != nil {
+				return err
+			}
+			combined, err := config.CombinedSchema(name, schema)
+			if err != nil {
+				return err
+			}
+			enc := json.NewEncoder(os.Stdout)
+			enc.SetIndent("", "  ")
+			return enc.Encode(combined)
 		}
 
-		out, err := yaml.Marshal(cfg)
+		res, err := config.Resolve(dir, name, "")
+		if err != nil {
+			return err
+		}
+		out, err := yaml.Marshal(map[string]any{"profiles": map[string]any{name: res.Profile}})
 		if err != nil {
 			return err
 		}
@@ -40,5 +53,6 @@ var configCmd = &cobra.Command{
 }
 
 func init() {
+	configCmd.Flags().BoolVar(&showSchema, "schema", false, "print the JSON schema instead of the defaults")
 	rootCmd.AddCommand(configCmd)
 }

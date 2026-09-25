@@ -3,8 +3,10 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/rophy/kindtks/internal/config"
 	"github.com/rophy/kindtks/internal/prereq"
 	"github.com/rophy/kindtks/internal/profile"
 	"github.com/spf13/cobra"
@@ -28,7 +30,11 @@ var deleteCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Deleting cluster(s) from profile %q...\n", name)
-		if err := runProfileFunc(p, "delete", nil); err != nil {
+		res, err := config.Resolve(dir, name, "")
+		if err != nil {
+			return err
+		}
+		if err := runProfileFunc(p, "delete", res, filepath.Join(p.Dir, "kind-config.yaml")); err != nil {
 			return err
 		}
 		return os.RemoveAll(profileStateDir(name))
