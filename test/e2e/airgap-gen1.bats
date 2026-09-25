@@ -131,6 +131,7 @@ SSH
   run ssh_vm bash -e <<'SSH'
 export PATH="$HOME/.local/bin:$PATH"
 
+docker pull registry.airgap:5000/kindest/node:v1.24.17
 docker tag registry.airgap:5000/kindest/node:v1.24.17 kindest/node:v1.24.17
 
 cat > ~/airgap-config.yaml <<'EOF'
