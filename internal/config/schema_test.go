@@ -49,6 +49,7 @@ func TestValidateCommon_Errors(t *testing.T) {
 		"extra registry field":  {"registries:\n  quay.io:\n    mirror: x\n", "registries.quay.io"},
 		"non-string image":      {"profiles:\n  gen1:\n    images: {cilium: 3}\n", "profiles.gen1.images.cilium"},
 		"profile not an object": {"profiles:\n  gen1: [a]\n", "profiles.gen1"},
+		"unsafe profile name":   {"profiles:\n  \"../x\": {}\n", "../x"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
