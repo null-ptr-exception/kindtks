@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -93,50 +94,51 @@ func validate(name string, schemaJSON []byte, inst any, prefix string) error {
 		return err
 	}
 	var msgs []string
-	collectLeaves(ve, prefix, message.NewPrinter(language.English), &msgs)
+	collectLeaves(ve, prefix, inst, message.NewPrinter(language.English), &msgs)
 	sort.Strings(msgs)
 	return fmt.Errorf("invalid config:\n  %s", strings.Join(msgs, "\n  "))
 }
 
 // collectLeaves flattens a validation error tree into one message per leaf.
-func collectLeaves(e *jsonschema.ValidationError, prefix string, p *message.Printer, out *[]string) {
+func collectLeaves(e *jsonschema.ValidationError, prefix string, inst any, p *message.Printer, out *[]string) {
 	if len(e.Causes) == 0 {
-		*out = append(*out, fmt.Sprintf("%s: %s", instancePath(prefix, e.InstanceLocation), e.ErrorKind.LocalizedString(p)))
+		*out = append(*out, fmt.Sprintf("%s: %s", instancePath(prefix, inst, e.InstanceLocation), e.ErrorKind.LocalizedString(p)))
 		return
 	}
 	for _, c := range e.Causes {
-		collectLeaves(c, prefix, p, out)
+		collectLeaves(c, prefix, inst, p, out)
 	}
 }
 
-// instancePath renders a location like profiles.gen1.gateway.extraHosts[0].
-func instancePath(prefix string, loc []string) string {
+// instancePath renders a location like profiles.gen1.gateway.extraHosts[0],
+// walking the validated instance alongside the location to tell array
+// indices from object keys that happen to look numeric (e.g. "5000").
+func instancePath(prefix string, inst any, loc []string) string {
 	var b strings.Builder
 	b.WriteString(prefix)
+	cur := inst
 	for _, seg := range loc {
-		if isIndex(seg) {
+		if arr, ok := cur.([]any); ok {
 			fmt.Fprintf(&b, "[%s]", seg)
+			if idx, err := strconv.Atoi(seg); err == nil && idx >= 0 && idx < len(arr) {
+				cur = arr[idx]
+			} else {
+				cur = nil
+			}
 			continue
 		}
 		if b.Len() > 0 {
 			b.WriteByte('.')
 		}
 		b.WriteString(seg)
+		if m, ok := cur.(map[string]any); ok {
+			cur = m[seg]
+		} else {
+			cur = nil
+		}
 	}
 	if b.Len() == 0 {
 		return "(root)"
 	}
 	return b.String()
-}
-
-func isIndex(s string) bool {
-	if s == "" {
-		return false
-	}
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
 }

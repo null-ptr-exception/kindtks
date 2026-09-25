@@ -97,6 +97,25 @@ func TestProfileSchema_ReadsFile(t *testing.T) {
 	}
 }
 
+func TestValidateProfile_ReportsPathForNumericKey(t *testing.T) {
+	numericKeySchema := `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "hosts": {"type": "object", "additionalProperties": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"port": {"type": "integer"}}
+    }}
+  }
+}`
+	section := obj(t, "hosts:\n  \"5000\":\n    port: \"bad\"\n")
+	err := ValidateProfile("gen1", []byte(numericKeySchema), section)
+	if err == nil || !strings.Contains(err.Error(), "profiles.gen1.hosts.5000.port") {
+		t.Fatalf("want path profiles.gen1.hosts.5000.port, got %v", err)
+	}
+}
+
 func TestCombinedSchema(t *testing.T) {
 	combined, err := CombinedSchema("gen1", []byte(testProfileSchema))
 	if err != nil {

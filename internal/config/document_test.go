@@ -52,3 +52,10 @@ func TestLoadDocument_RejectsNonMapping(t *testing.T) {
 		t.Fatalf("want mapping error, got %v", err)
 	}
 }
+
+func TestLoadDocument_RejectsNonStringKey(t *testing.T) {
+	_, err := LoadDocument(writeFile(t, "c.yaml", "1: a\n"))
+	if err == nil || !strings.Contains(err.Error(), "mapping key 1 is not a string") {
+		t.Fatalf("want non-string key error, got %v", err)
+	}
+}
