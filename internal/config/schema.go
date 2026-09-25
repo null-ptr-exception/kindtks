@@ -62,6 +62,9 @@ func CombinedSchema(name string, profileSchemaJSON []byte) (map[string]any, erro
 		return nil, fmt.Errorf("parsing %s schema: %w", name, err)
 	}
 	delete(prof, "$schema")
+	// Give the embedded schema its own resource so root-relative $ref/$defs
+	// inside it resolve against itself rather than the combined document.
+	prof["$id"] = "urn:kindtks:profile:" + name
 
 	profiles := common["properties"].(map[string]any)["profiles"].(map[string]any)
 	props, _ := profiles["properties"].(map[string]any)

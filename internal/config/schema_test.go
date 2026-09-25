@@ -116,6 +116,37 @@ func TestValidateProfile_ReportsPathForNumericKey(t *testing.T) {
 	}
 }
 
+func TestCombinedSchema_ResolvesRootRelativeRefs(t *testing.T) {
+	refSchema := `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "gateway": {"$ref": "#/$defs/gateway"}
+  },
+  "$defs": {
+    "gateway": {"type": "object", "additionalProperties": false,
+      "properties": {"port": {"type": "integer"}}}
+  }
+}`
+	combined, err := CombinedSchema("gen1", []byte(refSchema))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := jsonMarshal(combined)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok := obj(t, "profiles:\n  gen1:\n    gateway: {port: 8080}\n")
+	if err := validate("combined.json", data, ok, ""); err != nil {
+		t.Errorf("valid doc rejected: %v", err)
+	}
+	bad := obj(t, "profiles:\n  gen1:\n    gateway: {port: \"bad\"}\n")
+	if err := validate("combined.json", data, bad, ""); err == nil {
+		t.Error("$ref/$defs in the profile schema should still be enforced through the combined schema")
+	}
+}
+
 func TestCombinedSchema(t *testing.T) {
 	combined, err := CombinedSchema("gen1", []byte(testProfileSchema))
 	if err != nil {
