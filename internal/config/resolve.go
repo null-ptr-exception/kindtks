@@ -61,6 +61,11 @@ func Resolve(profilesDir, profile, userFile string) (*Resolved, error) {
 		if err != nil {
 			return nil, fmt.Errorf("loading profiles.%s schema: %w", name, err)
 		}
+		ownDefaults, err := LoadDocument(filepath.Join(dir, "config.yaml"))
+		if err != nil {
+			return nil, fmt.Errorf("loading profiles.%s defaults: %w", name, err)
+		}
+		sections[name] = MergeValues(ownDefaults, sections[name])
 		if err := ValidateProfile(name, schema, sections[name]); err != nil {
 			return nil, err
 		}

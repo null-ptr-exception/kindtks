@@ -132,6 +132,22 @@ func TestResolve_ProfileWithoutSchemaAcceptsOnlyImages(t *testing.T) {
 	}
 }
 
+func TestResolve_OtherInstalledProfileValidatedWithItsOwnDefaults(t *testing.T) {
+	dir := setupProfiles(t)
+	otherSchema := `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name"],
+  "properties": {"name": {"type": "string"}, "extra": {"type": "string"}}
+}`
+	writeProfile(t, dir, "other", "name: from-defaults\n", otherSchema)
+	user := writeFile(t, "user.yaml", "profiles:\n  other:\n    extra: x\n")
+	if _, err := Resolve(dir, "gen1", user); err != nil {
+		t.Fatalf("other profile's own defaults should supply required `name`: %v", err)
+	}
+}
+
 func TestResolve_OtherInstalledProfileValidated(t *testing.T) {
 	dir := setupProfiles(t)
 	writeProfile(t, dir, "other", "", "")
