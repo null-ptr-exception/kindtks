@@ -1322,7 +1322,7 @@ registries:
               override_path = true
 ```
 
-Host files are written to `~/.local/share/kindtks/state/<profile>/certs.d/` and removed by `kindtks delete`. The mirror must be reachable from the Kind nodes (e.g. a container on the `kind` Docker network).
+Host files are written to `$XDG_STATE_HOME/kindtks/<profile>/certs.d/` (`~/.local/state/kindtks/<profile>/certs.d/` by default) and removed by `kindtks delete`. The mirror must be reachable from the Kind nodes (e.g. a container on the `kind` Docker network).
 ````
 
 - [ ] **Step 3: Update `profiles/gen1/README.md`**
@@ -1496,7 +1496,7 @@ kindtks() {
 @test "kindtks delete removes generated state" {
   run kindtks delete "$PROFILE"
   assert_success
-  [ ! -e "${E2E_HOME}/.local/share/kindtks/state/${PROFILE}" ]
+  [ ! -e "${E2E_HOME}/.local/state/kindtks/${PROFILE}" ]
 }
 ```
 

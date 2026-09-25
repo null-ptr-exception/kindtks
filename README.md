@@ -83,6 +83,8 @@ The `registries` section configures containerd per registry:
 
 Migrating from 0.3.0: top-level `registryAuth` was replaced by `registries.<registry>.auth`.
 
+Changing `registries` requires re-creating the cluster: the host files are only written and mounted at `create` time. `auth` applies to the host containerd actually connects to, so for a mirror needing credentials, put `auth` under the mirror's host, not the upstream registry.
+
 Authentication:
 
 ```yaml
