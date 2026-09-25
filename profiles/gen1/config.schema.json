@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "kindtks gen1 profile",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "images": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind-node": {"type": "string"},
+        "cilium": {"type": "string"},
+        "cilium-operator": {"type": "string"},
+        "istio-pilot": {"type": "string"},
+        "istio-proxy": {"type": "string"},
+        "vault": {"type": "string"},
+        "vault-secrets-operator": {"type": "string"}
+      }
+    },
+    "gateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "extraHosts": {
+          "description": "Extra hosts accepted on the HTTP (port 80) server of Gateway istio-ingress/kindtks.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(\\*\\.)?([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)*[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$"
+          }
+        }
+      }
+    }
+  }
+}

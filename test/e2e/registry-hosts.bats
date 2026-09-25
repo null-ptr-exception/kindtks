@@ -40,8 +40,10 @@ EOF
   : > "${profile_dir}/config.yaml"
 
   cat > "${BATS_FILE_TMPDIR}/config.yaml" <<EOF
-images:
-  probe: registry.e2e.invalid:5000/probe:v1
+profiles:
+  ${PROFILE}:
+    images:
+      probe: registry.e2e.invalid:5000/probe:v1
 registries:
   docker.io:
     hosts: |

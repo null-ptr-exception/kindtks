@@ -135,13 +135,15 @@ docker pull registry.airgap:5000/kindest/node:v1.24.17
 docker tag registry.airgap:5000/kindest/node:v1.24.17 kindest/node:v1.24.17
 
 cat > ~/airgap-config.yaml <<'EOF'
-images:
-    cilium: registry.airgap:5000/quay.io/cilium/cilium:v1.13.10
-    cilium-operator: registry.airgap:5000/quay.io/cilium/operator-generic:v1.13.10
-    istio-pilot: registry.airgap:5000/docker.io/istio/pilot:1.16.7
-    istio-proxy: registry.airgap:5000/docker.io/istio/proxyv2:1.16.7
-    vault: registry.airgap:5000/hashicorp/vault:2.0.3
-    vault-secrets-operator: registry.airgap:5000/ghcr.io/ricoberger/vault-secrets-operator:v1.26.0
+profiles:
+    gen1:
+        images:
+            cilium: registry.airgap:5000/quay.io/cilium/cilium:v1.13.10
+            cilium-operator: registry.airgap:5000/quay.io/cilium/operator-generic:v1.13.10
+            istio-pilot: registry.airgap:5000/docker.io/istio/pilot:1.16.7
+            istio-proxy: registry.airgap:5000/docker.io/istio/proxyv2:1.16.7
+            vault: registry.airgap:5000/hashicorp/vault:2.0.3
+            vault-secrets-operator: registry.airgap:5000/ghcr.io/ricoberger/vault-secrets-operator:v1.26.0
 registries:
     registry.airgap:5000:
         auth:

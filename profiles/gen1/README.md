@@ -163,17 +163,21 @@ kindtks config gen1
 ```
 
 ```yaml
-images:
-    kind-node: kindest/node:v1.24.17
-    cilium: quay.io/cilium/cilium:v1.13.10
-    cilium-operator: quay.io/cilium/operator-generic:v1.13.10
-    istio-pilot: docker.io/istio/pilot:1.16.7
-    istio-proxy: docker.io/istio/proxyv2:1.16.7
-    vault: docker.io/hashicorp/vault:2.0.3
-    vault-secrets-operator: ghcr.io/ricoberger/vault-secrets-operator:v1.26.0
+profiles:
+    gen1:
+        images:
+            kind-node: kindest/node:v1.24.17
+            cilium: quay.io/cilium/cilium:v1.13.10
+            cilium-operator: quay.io/cilium/operator-generic:v1.13.10
+            istio-pilot: docker.io/istio/pilot:1.16.7
+            istio-proxy: docker.io/istio/proxyv2:1.16.7
+            vault: docker.io/hashicorp/vault:2.0.3
+            vault-secrets-operator: ghcr.io/ricoberger/vault-secrets-operator:v1.26.0
+        gateway:
+            extraHosts: []
 ```
 
-Override any image by passing `--config`:
+Override images or options by passing `--config`:
 
 ```bash
 kindtks create gen1 --config my-config.yaml
@@ -181,15 +185,30 @@ kindtks create gen1 --config my-config.yaml
 
 Private registries (anything not docker.io, quay.io, ghcr.io, etc.) are automatically trusted as insecure (HTTP) in the Kind nodes' containerd config.
 
+### Extra Gateway hosts
+
+`gateway.extraHosts` adds hosts to the HTTP (port 80) server of Gateway `istio-ingress/kindtks`, e.g. for apps whose TLS terminates upstream:
+
+```yaml
+profiles:
+    gen1:
+        gateway:
+            extraHosts: ["*.example.net"]
+```
+
+HTTPS still serves only `*.kindtks.localhost` and `*.kindtks.local`. Route a host with a VirtualService bound to `istio-ingress/kindtks`.
+
 ### Registry Authentication and Mirrors
 
 Per-registry containerd settings go under `registries` (see the top-level README for details):
 
 ```yaml
-images:
-    kind-node: registry.internal:5000/kindest/node:v1.24.17
-    cilium: registry.internal:5000/quay.io/cilium/cilium:v1.13.10
-    # ... other images ...
+profiles:
+    gen1:
+        images:
+            kind-node: registry.internal:5000/kindest/node:v1.24.17
+            cilium: registry.internal:5000/quay.io/cilium/cilium:v1.13.10
+            # ... other images ...
 registries:
     registry.internal:5000:
         auth:

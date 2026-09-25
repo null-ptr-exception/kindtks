@@ -188,3 +188,48 @@ MOCK
     echo "$keys" | grep -q "^${expected}$" || fail "Missing image key: $expected"
   done
 }
+
+# --- gateway extra hosts ---
+
+@test "add_gateway_extra_hosts patches each host onto the HTTP server" {
+  export KUBECTL_ARGS_FILE="${BATS_TEST_TMPDIR}/kubectl_args"
+  cat > "${MOCK_BIN}/kubectl" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$KUBECTL_ARGS_FILE"
+MOCK
+  chmod +x "${MOCK_BIN}/kubectl"
+  cat > "${MOCK_BIN}/fake-kindtks" <<'MOCK'
+#!/usr/bin/env bash
+[ "$1 $2" = "value gateway.extraHosts" ] && printf '%s\n' '*.example.net' 'app.example.com'
+MOCK
+  chmod +x "${MOCK_BIN}/fake-kindtks"
+  export KINDTKS_BIN="${MOCK_BIN}/fake-kindtks"
+
+  run add_gateway_extra_hosts
+  assert_success
+
+  run cat "$KUBECTL_ARGS_FILE"
+  assert_line --index 0 '-n istio-ingress patch gateway kindtks --type=json -p [{"op":"add","path":"/spec/servers/0/hosts/-","value":"*.example.net"}]'
+  assert_line --index 1 '-n istio-ingress patch gateway kindtks --type=json -p [{"op":"add","path":"/spec/servers/0/hosts/-","value":"app.example.com"}]'
+}
+
+@test "add_gateway_extra_hosts does nothing without extra hosts" {
+  export KUBECTL_ARGS_FILE="${BATS_TEST_TMPDIR}/kubectl_args"
+  cat > "${MOCK_BIN}/kubectl" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$KUBECTL_ARGS_FILE"
+MOCK
+  chmod +x "${MOCK_BIN}/kubectl"
+  printf '#!/usr/bin/env bash\n' > "${MOCK_BIN}/fake-kindtks"
+  chmod +x "${MOCK_BIN}/fake-kindtks"
+  export KINDTKS_BIN="${MOCK_BIN}/fake-kindtks"
+
+  run add_gateway_extra_hosts
+  assert_success
+  [ ! -e "$KUBECTL_ARGS_FILE" ]
+}
+
+@test "gateway.yaml HTTP server is the first server" {
+  run grep -m1 -A2 'port:' "${KINDTKS_PROFILE_DIR}/gateway.yaml"
+  assert_output --partial "number: 80"
+}

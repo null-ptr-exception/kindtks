@@ -115,6 +115,21 @@ install_istio() {
 
   echo "==> Creating wildcard Gateway (*.kindtks.localhost)..."
   kubectl apply -f "$KINDTKS_PROFILE_DIR/gateway.yaml"
+  add_gateway_extra_hosts
+}
+
+# Adds profiles.gen1.gateway.extraHosts to the HTTP server (servers[0]) of
+# the kindtks Gateway. HTTPS is untouched: kindtks-tls only covers the
+# built-in domains.
+add_gateway_extra_hosts() {
+  local hosts host
+  hosts=$("$KINDTKS_BIN" value gateway.extraHosts)
+  while IFS= read -r host; do
+    [ -n "$host" ] || continue
+    echo "==> Adding gateway host ${host} (HTTP)..."
+    kubectl -n istio-ingress patch gateway kindtks --type=json \
+      -p "[{\"op\":\"add\",\"path\":\"/spec/servers/0/hosts/-\",\"value\":\"${host}\"}]"
+  done <<< "$hosts"
 }
 
 install_vault() {
