@@ -197,4 +197,10 @@ func TestLoadRejectsRegistryAuth(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "registryAuth") {
 		t.Fatalf("expected error mentioning registryAuth, got %v", err)
 	}
+	if !strings.Contains(err.Error(), "registries.<registry>.auth") {
+		t.Fatalf("expected error to hint at registries.<registry>.auth, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "README") {
+		t.Fatalf("expected error to point at README, got %v", err)
+	}
 }

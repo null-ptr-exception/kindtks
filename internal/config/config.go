@@ -43,6 +43,9 @@ func Load(path string) (*Config, error) {
 	dec := yaml.NewDecoder(bytes.NewReader(data))
 	dec.KnownFields(true)
 	if err := dec.Decode(cfg); err != nil && !errors.Is(err, io.EOF) {
+		if strings.Contains(err.Error(), "registryAuth") {
+			return nil, fmt.Errorf("parsing %s: %w (`registryAuth` was replaced by `registries.<registry>.auth`; see README)", path, err)
+		}
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
 	if err := cfg.Validate(); err != nil {

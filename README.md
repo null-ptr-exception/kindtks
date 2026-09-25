@@ -81,6 +81,8 @@ The `registries` section configures containerd per registry:
 - `hosts`: raw content of containerd's [`hosts.toml`](https://github.com/containerd/containerd/blob/main/docs/hosts.md) for that registry. Replaces the auto-trust config for a private registry.
 - `auth`: username and password, for registries that need authentication (HTTP or HTTPS).
 
+Migrating from 0.3.0: top-level `registryAuth` was replaced by `registries.<registry>.auth`.
+
 Authentication:
 
 ```yaml
