@@ -158,6 +158,15 @@ func TestResolve_OtherInstalledProfileValidated(t *testing.T) {
 	}
 }
 
+func TestResolve_MissingConfigFileErrors(t *testing.T) {
+	dir := setupProfiles(t)
+	missing := filepath.Join(t.TempDir(), "nope.yaml")
+	_, err := Resolve(dir, "gen1", missing)
+	if err == nil || !strings.Contains(err.Error(), missing) || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("want 'not found' error mentioning %q, got %v", missing, err)
+	}
+}
+
 func TestResolve_UninstalledProfileWarns(t *testing.T) {
 	user := writeFile(t, "user.yaml", "profiles:\n  ghost:\n    anything: 1\n")
 	res, err := Resolve(setupProfiles(t), "gen1", user)

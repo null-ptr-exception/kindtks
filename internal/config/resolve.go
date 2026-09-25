@@ -30,6 +30,12 @@ func Resolve(profilesDir, profile, userFile string) (*Resolved, error) {
 	merged := map[string]any{"profiles": map[string]any{profile: defaults}}
 
 	if userFile != "" {
+		if _, err := os.Stat(userFile); err != nil {
+			if os.IsNotExist(err) {
+				return nil, fmt.Errorf("config file %s not found", userFile)
+			}
+			return nil, err
+		}
 		user, err := LoadDocument(userFile)
 		if err != nil {
 			return nil, fmt.Errorf("loading config file: %w", err)
