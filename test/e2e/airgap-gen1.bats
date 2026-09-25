@@ -141,10 +141,11 @@ images:
     istio-proxy: registry.airgap:5000/docker.io/istio/proxyv2:1.16.7
     vault: registry.airgap:5000/hashicorp/vault:2.0.3
     vault-secrets-operator: registry.airgap:5000/ghcr.io/ricoberger/vault-secrets-operator:v1.26.0
-registryAuth:
+registries:
     registry.airgap:5000:
-        username: airgap
-        password: airgap
+        auth:
+            username: airgap
+            password: airgap
 EOF
 
 kindtks create gen1 --config ~/airgap-config.yaml

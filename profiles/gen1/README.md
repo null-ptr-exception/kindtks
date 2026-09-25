@@ -181,22 +181,23 @@ kindtks create gen1 --config my-config.yaml
 
 Private registries (anything not docker.io, quay.io, ghcr.io, etc.) are automatically trusted as insecure (HTTP) in the Kind nodes' containerd config.
 
-### Registry Authentication
+### Registry Authentication and Mirrors
 
-If your registry requires authentication, add a `registryAuth` section to the config:
+Per-registry containerd settings go under `registries` (see the top-level README for details):
 
 ```yaml
 images:
     kind-node: registry.internal:5000/kindest/node:v1.24.17
     cilium: registry.internal:5000/quay.io/cilium/cilium:v1.13.10
     # ... other images ...
-registryAuth:
+registries:
     registry.internal:5000:
-        username: myuser
-        password: mypass
+        auth:
+            username: myuser
+            password: mypass
 ```
 
-Credentials are injected into the Kind nodes' containerd config. The `kind-node` image is pulled by Docker on the host (not by containerd inside the cluster), so in an air-gapped environment, pre-pull it:
+Credentials are injected into the Kind nodes' containerd config. A `hosts` entry (raw containerd `hosts.toml`) points a registry at a mirror or pull-through cache. The `kind-node` image is pulled by Docker on the host (not by containerd inside the cluster), so in an air-gapped environment, pre-pull it:
 
 ```bash
 docker pull registry.internal:5000/kindest/node:v1.24.17

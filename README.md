@@ -72,22 +72,40 @@ images:
     vault-secrets-operator: registry.internal:5000/ghcr.io/ricoberger/vault-secrets-operator:v1.26.0
 ```
 
-Private registries are automatically trusted as insecure (HTTP) in the Kind node's containerd config. The following well-known registries are excluded from this auto-trust: docker.io, quay.io, ghcr.io, gcr.io, registry.k8s.io, k8s.gcr.io, mcr.microsoft.com, public.ecr.aws. Everything else is treated as private.
+Private registries are automatically trusted as insecure (HTTP): kindtks writes a containerd `hosts.toml` for each one and mounts it into every Kind node. The following well-known registries are excluded from this auto-trust: docker.io, quay.io, ghcr.io, gcr.io, registry.k8s.io, k8s.gcr.io, mcr.microsoft.com, public.ecr.aws. Everything else is treated as private.
 
-### Registry Authentication
+### Per-registry settings
 
-If your registry requires authentication, add a `registryAuth` section to the config:
+The `registries` section configures containerd per registry:
+
+- `hosts`: raw content of containerd's [`hosts.toml`](https://github.com/containerd/containerd/blob/main/docs/hosts.md) for that registry. Replaces the auto-trust config for a private registry.
+- `auth`: username and password, for registries that need authentication (HTTP or HTTPS).
+
+Authentication:
 
 ```yaml
 images:
     cilium: registry.corp.com/cilium/cilium:v1.13.10
-registryAuth:
+registries:
     registry.corp.com:
-        username: svc-account
-        password: secret-token
+        auth:
+            username: svc-account
+            password: secret-token
 ```
 
-Credentials are injected into the Kind node's containerd config. This works independently of insecure registry auto-trust — authenticated HTTPS registries are supported.
+Pull-through mirror: images keep their normal names and containerd pulls them through the mirror, falling back to the upstream registry if the mirror is down. An override config only needs the `registries` section:
+
+```yaml
+registries:
+    quay.io:
+        hosts: |
+            server = "https://quay.io"
+            [host."http://mirror:5000/v2/quay.io"]
+              capabilities = ["pull", "resolve"]
+              override_path = true
+```
+
+Host files are written to `~/.local/share/kindtks/state/<profile>/certs.d/` and removed by `kindtks delete`. The mirror must be reachable from the Kind nodes (e.g. a container on the `kind` Docker network).
 
 Note: `kind` pulls the node image from the local Docker daemon, not from inside the cluster. In an air-gapped environment, pre-pull it so it's available locally:
 
