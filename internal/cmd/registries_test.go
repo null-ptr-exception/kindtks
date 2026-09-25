@@ -38,8 +38,42 @@ func TestPrepareKindConfig_NothingToDo(t *testing.T) {
 	if got != kindCfg {
 		t.Errorf("expected original kind config, got %q", got)
 	}
-	if _, err := os.Stat(filepath.Join(stateDir, "certs.d")); !os.IsNotExist(err) {
-		t.Errorf("expected stale certs.d removed, stat err = %v", err)
+	if _, err := os.Stat(filepath.Join(stateDir, "certs.d", "old.example.com")); !os.IsNotExist(err) {
+		t.Errorf("expected stale entry removed, stat err = %v", err)
+	}
+	// certs.d itself must survive: running nodes bind-mount it by inode.
+	if _, err := os.Stat(filepath.Join(stateDir, "certs.d")); err != nil {
+		t.Errorf("expected certs.d dir kept, stat err = %v", err)
+	}
+}
+
+func TestPrepareKindConfig_NoFilesPreservesDirInode(t *testing.T) {
+	kindCfg := writeTestKindConfig(t)
+	stateDir := t.TempDir()
+	certsDir := filepath.Join(stateDir, "certs.d")
+	stale := filepath.Join(certsDir, "old.example.com")
+	os.MkdirAll(stale, 0755)
+
+	fi1, err := os.Stat(certsDir)
+	if err != nil {
+		t.Fatalf("stat before: %v", err)
+	}
+
+	_, cleanup, err := prepareKindConfig(kindCfg, &config.Config{}, stateDir)
+	defer cleanup()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	fi2, err := os.Stat(certsDir)
+	if err != nil {
+		t.Fatalf("expected certs.d dir to still exist, stat err = %v", err)
+	}
+	if !os.SameFile(fi1, fi2) {
+		t.Error("expected certs.d dir inode to survive clearing (bind mounts rely on it)")
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Errorf("expected stale entry removed, stat err = %v", err)
 	}
 }
 

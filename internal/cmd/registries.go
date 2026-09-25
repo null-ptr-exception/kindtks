@@ -27,6 +27,25 @@ func profileStateDir(profile string) string {
 	return filepath.Join(stateDir(), profile)
 }
 
+// clearDir removes dir's contents but keeps dir itself: running nodes
+// bind-mount it by inode, so replacing the dir would leave them looking at
+// an empty mount. A missing dir is not an error.
+func clearDir(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, e := range entries {
+		if err := os.RemoveAll(filepath.Join(dir, e.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // prepareKindConfig writes the registry host files under stateDir and returns
 // the kind config to use: the original path when no registry settings apply,
 // otherwise a patched temp copy removed by the returned cleanup func.
@@ -40,8 +59,8 @@ func prepareKindConfig(kindCfgPath string, cfg *config.Config, stateDir string) 
 
 	files := cfg.HostsFiles()
 	if len(files) == 0 {
-		if err := os.RemoveAll(certsDir); err != nil {
-			return "", noop, err
+		if err := clearDir(certsDir); err != nil {
+			return "", noop, fmt.Errorf("clearing registry host files: %w", err)
 		}
 		certsDir = ""
 	} else {
