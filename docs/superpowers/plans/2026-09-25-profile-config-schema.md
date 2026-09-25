@@ -1697,7 +1697,7 @@ profiles:
 HTTPS still serves only `*.kindtks.localhost` and `*.kindtks.local`. Route a host with a VirtualService bound to `istio-ingress/kindtks`.
 ````
 
-Verify: `grep -rn '^images:' README.md profiles/gen1/README.md test/e2e/*.bats` prints nothing outside `profiles/gen1/config.yaml`-style bodies; `grep -rniE 'jsgr|rophyinc' README.md profiles test` prints nothing.
+Verify: `grep -rn '^images:' README.md profiles/gen1/README.md test/e2e/*.bats` prints nothing outside `profiles/gen1/config.yaml`-style bodies; grep the changed files for private hostnames and confirm none are present.
 
 - [ ] **Step 7: Commit**
 

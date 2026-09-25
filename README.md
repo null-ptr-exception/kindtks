@@ -53,6 +53,8 @@ Each profile has its own documentation accessible via `kindtks help <profile>`.
 
 `kindtks create <profile> --config <file>` merges `<file>` over the profile's defaults (`kindtks config <profile>` prints them). Objects merge key by key; lists and scalars replace.
 
+`kindtks delete <profile>` also validates the profile's shipped defaults, but does not take `--config`.
+
 ```yaml
 registries:            # common to all profiles (see Custom Image Registry)
   ...
@@ -119,9 +121,9 @@ Authentication:
 profiles:
     gen1:
         images:
-            cilium: registry.corp.com/cilium/cilium:v1.13.10
+            cilium: registry.example.com/cilium/cilium:v1.13.10
 registries:
-    registry.corp.com:
+    registry.example.com:
         auth:
             username: svc-account
             password: secret-token
