@@ -85,3 +85,35 @@ func TestPrepareKindConfig_WritesHostsAndPatches(t *testing.T) {
 		t.Error("legacy mirrors/tls patches must not be emitted")
 	}
 }
+
+func TestProfileStateDir_XDGStateHome(t *testing.T) {
+	xdg := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", xdg)
+
+	want := filepath.Join(xdg, "kindtks", "p1")
+	if got := profileStateDir("p1"); got != want {
+		t.Errorf("profileStateDir = %q, want %q", got, want)
+	}
+}
+
+func TestProfileStateDir_DefaultsToHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", "")
+	t.Setenv("HOME", home)
+
+	want := filepath.Join(home, ".local", "state", "kindtks", "p1")
+	if got := profileStateDir("p1"); got != want {
+		t.Errorf("profileStateDir = %q, want %q", got, want)
+	}
+}
+
+func TestProfileStateDir_IgnoresRelativeXDGStateHome(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", "relative/state")
+	t.Setenv("HOME", home)
+
+	want := filepath.Join(home, ".local", "state", "kindtks", "p1")
+	if got := profileStateDir("p1"); got != want {
+		t.Errorf("profileStateDir = %q, want %q", got, want)
+	}
+}

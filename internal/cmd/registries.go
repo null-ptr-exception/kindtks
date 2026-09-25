@@ -11,10 +11,20 @@ import (
 	"github.com/rophy/kindtks/internal/kindconfig"
 )
 
+// stateDir is kindtks' XDG state dir. It is kept apart from dataDir because
+// `kindtks install` runs in Docker as root and may leave dataDir root-owned.
+func stateDir() string {
+	if xdg := os.Getenv("XDG_STATE_HOME"); filepath.IsAbs(xdg) {
+		return filepath.Join(xdg, "kindtks")
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".local", "state", "kindtks")
+}
+
 // profileStateDir holds files a profile's clusters need at runtime, such as
 // the registry host files mounted into Kind nodes.
 func profileStateDir(profile string) string {
-	return filepath.Join(dataDir(), "state", profile)
+	return filepath.Join(stateDir(), profile)
 }
 
 // prepareKindConfig writes the registry host files under stateDir and returns

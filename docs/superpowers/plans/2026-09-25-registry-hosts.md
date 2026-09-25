@@ -20,7 +20,7 @@
   ```
 - Never emit `registry.mirrors` or `registry.configs.<reg>.tls`; containerd rejects them when `config_path` is set.
 - Credentials stay in `[plugins."io.containerd.grpc.v1.cri".registry.configs."<reg>".auth]`.
-- Generated host files: `~/.local/share/kindtks/state/<profile>/certs.d/<registry>/hosts.toml`.
+- Generated host files: `~/.local/state/kindtks/<profile>/certs.d/<registry>/hosts.toml` (`$XDG_STATE_HOME` overrides `~/.local/state`).
 - No host files to write → no mount, no `config_path` patch; the profile's kind config is used unchanged.
 - Commit messages: `<type>: <description>`, no AI attribution lines.
 - Never put private hostnames/domains in committed content.

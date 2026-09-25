@@ -105,7 +105,7 @@ registries:
               override_path = true
 ```
 
-Host files are written to `~/.local/share/kindtks/state/<profile>/certs.d/` and removed by `kindtks delete`. The mirror must be reachable from the Kind nodes (e.g. a container on the `kind` Docker network).
+Host files are written to `~/.local/state/kindtks/<profile>/certs.d/` (`$XDG_STATE_HOME` overrides `~/.local/state`) and removed by `kindtks delete`. The mirror must be reachable from the Kind nodes (e.g. a container on the `kind` Docker network).
 
 Note: `kind` pulls the node image from the local Docker daemon, not from inside the cluster. In an air-gapped environment, pre-pull it so it's available locally:
 
