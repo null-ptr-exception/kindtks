@@ -13,10 +13,11 @@ import (
 var valueRequired bool
 
 var valueCmd = &cobra.Command{
-	Use:    "value <path>",
-	Short:  "Print a profile config value (for use in profile scripts)",
-	Hidden: true,
-	Args:   cobra.ExactArgs(1),
+	Use:          "value <path>",
+	Short:        "Print a profile config value (for use in profile scripts)",
+	Hidden:       true,
+	SilenceUsage: true,
+	Args:         cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := os.Getenv("KINDTKS_PROFILE_CONFIG")
 		if path == "" {

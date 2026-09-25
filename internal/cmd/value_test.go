@@ -46,6 +46,12 @@ func TestValueLines(t *testing.T) {
 	}
 }
 
+func TestValueCmd_SilencesUsage(t *testing.T) {
+	if !valueCmd.SilenceUsage {
+		t.Error("valueCmd should set SilenceUsage so a script error doesn't dump cobra usage")
+	}
+}
+
 func TestValueLines_Errors(t *testing.T) {
 	doc := decode(t, `{"gateway":{"extraHosts":["a"]},"objs":[{"a":1}]}`)
 	for _, path := range []string{"gateway", "objs", ""} {
