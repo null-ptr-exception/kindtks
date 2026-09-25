@@ -181,3 +181,81 @@ func TestContainerdPatchSpecialCharsInPassword(t *testing.T) {
 		t.Errorf("patch should properly escape special chars, got:\n%s", patch)
 	}
 }
+
+func TestHostsFilesAutoTrust(t *testing.T) {
+	cfg := &Config{Images: map[string]string{
+		"a": "registry.airgap:5000/foo:v1",
+		"b": "quay.io/cilium/cilium:v1.13.10",
+	}}
+
+	files := cfg.HostsFiles()
+
+	if len(files) != 1 {
+		t.Fatalf("expected one host file, got %v", files)
+	}
+	want := "server = \"http://registry.airgap:5000\"\n\n" +
+		"[host.\"http://registry.airgap:5000\"]\n" +
+		"  capabilities = [\"pull\", \"resolve\"]\n" +
+		"  skip_verify = true\n"
+	if files["registry.airgap:5000"] != want {
+		t.Errorf("got:\n%s\nwant:\n%s", files["registry.airgap:5000"], want)
+	}
+}
+
+func TestHostsFilesExplicitOverridesAutoTrust(t *testing.T) {
+	cfg := &Config{
+		Images: map[string]string{"a": "registry.airgap:5000/foo:v1"},
+		Registries: map[string]*Registry{
+			"registry.airgap:5000": {Hosts: "custom"},
+			"docker.io":            {Hosts: "mirror"},
+		},
+	}
+
+	files := cfg.HostsFiles()
+
+	if files["registry.airgap:5000"] != "custom" || files["docker.io"] != "mirror" || len(files) != 2 {
+		t.Errorf("unexpected files: %v", files)
+	}
+}
+
+func TestHostsFilesAuthOnlyHasNoFile(t *testing.T) {
+	cfg := &Config{Registries: map[string]*Registry{
+		"registry.corp.com": {Auth: &RegistryAuth{Username: "u", Password: "p"}},
+	}}
+
+	if files := cfg.HostsFiles(); len(files) != 0 {
+		t.Errorf("expected no host files, got %v", files)
+	}
+}
+
+func TestAuthPatch(t *testing.T) {
+	cfg := &Config{Registries: map[string]*Registry{
+		"z.example.com": {Auth: &RegistryAuth{Username: "z", Password: `p@ss"w0rd\`}},
+		"a.example.com": {Auth: &RegistryAuth{Username: "a", Password: "a"}},
+		"docker.io":     {Hosts: "mirror"},
+	}}
+
+	if got := cfg.AuthRegistries(); len(got) != 2 || got[0] != "a.example.com" || got[1] != "z.example.com" {
+		t.Errorf("AuthRegistries = %v", got)
+	}
+
+	patch := cfg.AuthPatch()
+	if !strings.Contains(patch, `[plugins."io.containerd.grpc.v1.cri".registry.configs."z.example.com".auth]`) {
+		t.Error("patch should contain z.example.com auth section")
+	}
+	if !strings.Contains(patch, `password = "p@ss\"w0rd\\"`) {
+		t.Errorf("password should be escaped, got:\n%s", patch)
+	}
+	if strings.Index(patch, "a.example.com") > strings.Index(patch, "z.example.com") {
+		t.Error("registries should be sorted")
+	}
+	if strings.Contains(patch, "docker.io") {
+		t.Error("registries without auth must not appear")
+	}
+}
+
+func TestAuthPatchEmpty(t *testing.T) {
+	if patch := (&Config{}).AuthPatch(); patch != "" {
+		t.Errorf("expected empty patch, got %q", patch)
+	}
+}

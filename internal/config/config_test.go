@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -145,5 +146,103 @@ func TestMergeRegistryAuth(t *testing.T) {
 	}
 	if merged.RegistryAuth["registry.b.com"] == nil {
 		t.Error("expected registry.b.com from override")
+	}
+}
+
+func TestLoadRegistries(t *testing.T) {
+	dir := t.TempDir()
+	configFile := filepath.Join(dir, "config.yaml")
+	os.WriteFile(configFile, []byte(`registries:
+  quay.io:
+    hosts: |
+      server = "https://quay.io"
+      [host."http://zot:5000/v2/quay.io"]
+        capabilities = ["pull", "resolve"]
+        override_path = true
+  registry.corp.com:
+    auth:
+      username: svc
+      password: secret
+`), 0644)
+
+	cfg, err := Load(configFile)
+	if err != nil {
+		t.Fatalf("Load failed: %v", err)
+	}
+	if !strings.Contains(cfg.Registries["quay.io"].Hosts, `override_path = true`) {
+		t.Errorf("unexpected quay.io hosts: %q", cfg.Registries["quay.io"].Hosts)
+	}
+	auth := cfg.Registries["registry.corp.com"].Auth
+	if auth == nil || auth.Username != "svc" || auth.Password != "secret" {
+		t.Errorf("unexpected auth: %+v", auth)
+	}
+}
+
+func TestLoadRejectsUnknownKey(t *testing.T) {
+	dir := t.TempDir()
+	configFile := filepath.Join(dir, "config.yaml")
+	os.WriteFile(configFile, []byte("imagez:\n  cilium: x\n"), 0644)
+
+	if _, err := Load(configFile); err == nil {
+		t.Fatal("expected error for unknown key")
+	}
+}
+
+func TestLoadRejectsInvalidHostsTOML(t *testing.T) {
+	dir := t.TempDir()
+	configFile := filepath.Join(dir, "config.yaml")
+	os.WriteFile(configFile, []byte("registries:\n  quay.io:\n    hosts: \"server = \"\n"), 0644)
+
+	_, err := Load(configFile)
+	if err == nil || !strings.Contains(err.Error(), "quay.io") {
+		t.Fatalf("expected TOML error naming quay.io, got %v", err)
+	}
+}
+
+func TestLoadRejectsBadRegistryName(t *testing.T) {
+	for _, name := range []string{`""`, `a/b`, `..`, `a..b`} {
+		dir := t.TempDir()
+		configFile := filepath.Join(dir, "config.yaml")
+		os.WriteFile(configFile, []byte("registries:\n  "+name+":\n    hosts: \"x = 1\"\n"), 0644)
+
+		if _, err := Load(configFile); err == nil {
+			t.Errorf("expected error for registry name %s", name)
+		}
+	}
+}
+
+func TestMergeRegistriesPerField(t *testing.T) {
+	base := &Config{Registries: map[string]*Registry{
+		"quay.io":  {Hosts: "base-hosts"},
+		"ghcr.io":  {Hosts: "ghcr-hosts"},
+		"corp.com": {Auth: &RegistryAuth{Username: "a", Password: "a"}},
+	}}
+	override := &Config{Registries: map[string]*Registry{
+		"quay.io":  {Auth: &RegistryAuth{Username: "u", Password: "p"}},
+		"ghcr.io":  {Hosts: "override-hosts"},
+		"corp.com": {Auth: &RegistryAuth{Username: "b", Password: "b"}},
+	}}
+
+	merged := Merge(base, override)
+
+	if r := merged.Registries["quay.io"]; r.Hosts != "base-hosts" || r.Auth == nil || r.Auth.Username != "u" {
+		t.Errorf("quay.io should keep base hosts and take override auth, got %+v", r)
+	}
+	if merged.Registries["ghcr.io"].Hosts != "override-hosts" {
+		t.Errorf("ghcr.io hosts should be overridden, got %q", merged.Registries["ghcr.io"].Hosts)
+	}
+	if merged.Registries["corp.com"].Auth.Username != "b" {
+		t.Errorf("corp.com auth should be overridden")
+	}
+}
+
+func TestMergeDoesNotModifyInputs(t *testing.T) {
+	base := &Config{Registries: map[string]*Registry{"quay.io": {Hosts: "base-hosts"}}}
+	override := &Config{Registries: map[string]*Registry{"quay.io": {Hosts: "override-hosts"}}}
+
+	Merge(base, override)
+
+	if base.Registries["quay.io"].Hosts != "base-hosts" {
+		t.Error("Merge must not modify base")
 	}
 }

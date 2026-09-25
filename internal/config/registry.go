@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 )
 
@@ -99,6 +100,52 @@ func ContainerdPatch(registries []string, auth map[string]*RegistryAuth) string 
 		fmt.Fprintf(&b, "[plugins.\"io.containerd.grpc.v1.cri\".registry.configs.%q.auth]\n", reg)
 		fmt.Fprintf(&b, "  username = %q\n", cred.Username)
 		fmt.Fprintf(&b, "  password = %q\n", cred.Password)
+	}
+	return b.String()
+}
+
+// HostsFiles returns the hosts.toml content to write per registry: an
+// insecure (HTTP) config for each private registry found in images, replaced
+// by the registry's explicit hosts entry when one is set.
+func (c *Config) HostsFiles() map[string]string {
+	files := make(map[string]string)
+	for _, reg := range c.PrivateRegistries() {
+		files[reg] = insecureHosts(reg)
+	}
+	for name, r := range c.Registries {
+		if r != nil && r.Hosts != "" {
+			files[name] = r.Hosts
+		}
+	}
+	return files
+}
+
+func insecureHosts(reg string) string {
+	url := "http://" + reg
+	return fmt.Sprintf("server = %q\n\n[host.%q]\n  capabilities = [\"pull\", \"resolve\"]\n  skip_verify = true\n", url, url)
+}
+
+// AuthRegistries returns the sorted names of registries with credentials.
+func (c *Config) AuthRegistries() []string {
+	var names []string
+	for name, r := range c.Registries {
+		if r != nil && r.Auth != nil {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+// AuthPatch returns a containerd config patch with credentials for every
+// registry that has auth, or "" when there are none.
+func (c *Config) AuthPatch() string {
+	var b strings.Builder
+	for _, name := range c.AuthRegistries() {
+		auth := c.Registries[name].Auth
+		fmt.Fprintf(&b, "[plugins.\"io.containerd.grpc.v1.cri\".registry.configs.%q.auth]\n", name)
+		fmt.Fprintf(&b, "  username = %q\n", auth.Username)
+		fmt.Fprintf(&b, "  password = %q\n", auth.Password)
 	}
 	return b.String()
 }
