@@ -64,7 +64,7 @@ profiles:
       extraHosts: ["*.example.net"]
 ```
 
-One file can hold sections for several profiles; sections for profiles not installed are ignored with a warning. Each profile validates its section with its own JSON Schema (`profiles/<name>/config.schema.json`). For editor completion:
+One file can hold sections for several profiles; sections for profiles not installed are ignored with a warning. Each profile validates its section with its own JSON Schema (`profiles/<name>/config.schema.json`), written against JSON Schema 2020-12 with format assertion enabled (e.g. `"format": "hostname"`). For editor completion:
 
 ```bash
 kindtks config gen1 --schema > kindtks.schema.json

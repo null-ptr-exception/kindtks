@@ -83,6 +83,7 @@ func validate(name string, schemaJSON []byte, inst any, prefix string) error {
 		return fmt.Errorf("parsing schema %s: %w", name, err)
 	}
 	c := jsonschema.NewCompiler()
+	c.AssertFormat()
 	if err := c.AddResource(url, doc); err != nil {
 		return fmt.Errorf("loading schema %s: %w", name, err)
 	}

@@ -117,6 +117,21 @@ func TestValidateProfile_ReportsPathForNumericKey(t *testing.T) {
 	}
 }
 
+func TestValidateProfile_FormatAssertion(t *testing.T) {
+	formatSchema := `{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "host": {"type": "string", "format": "hostname"}
+  }
+}`
+	err := ValidateProfile("gen1", []byte(formatSchema), obj(t, "host: \"not a host\"\n"))
+	if err == nil || !strings.Contains(err.Error(), "profiles.gen1.host") {
+		t.Fatalf("want format assertion to reject an invalid hostname, got %v", err)
+	}
+}
+
 func TestCombinedSchema_ResolvesRootRelativeRefs(t *testing.T) {
 	refSchema := `{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
