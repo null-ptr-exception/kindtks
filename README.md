@@ -33,7 +33,7 @@ In the rest of this document, `kindtks <args>` is short for this command with `<
 
 The image includes kind, kubectl, helm and every other tool the profiles use. To use the cluster afterwards from the host you still need your own kubectl (or run it from the image with `--entrypoint kubectl`).
 
-Air-gapped hosts: push this image to your registry and use that reference instead.
+Air-gapped hosts: push this image to your registry and use that reference instead; add `-e KINDTKS_IMAGE=<your reference>` so the help and hints kindtks prints show it too.
 
 Upgrading from 0.5.x: `kindtks install` is gone; `~/.local/bin/kindtks` and `~/.local/share/kindtks` are no longer used and can be deleted.
 
@@ -156,7 +156,7 @@ registries:
               override_path = true
 ```
 
-Host files are written to `~/.local/state/kindtks/<profile>/certs.d/` (`$XDG_STATE_HOME` overrides `~/.local/state`) and removed by `kindtks delete`. The mirror must be reachable from the Kind nodes (e.g. a container on the `kind` Docker network).
+Host files are written to `~/.local/state/kindtks/<profile>/certs.d/` and removed by `kindtks delete`. The mirror must be reachable from the Kind nodes (e.g. a container on the `kind` Docker network).
 
 Note: `kind` pulls the node image from the local Docker daemon, not from inside the cluster. In an air-gapped environment, pre-pull it so it's available locally:
 
