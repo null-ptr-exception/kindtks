@@ -179,3 +179,10 @@ MOCK
   [ -x "$DEST/helm" ]
   [ -x "$DEST/kindtks" ]
 }
+
+@test "a truncated installer runs nothing" {
+  head -n -1 "$INSTALLER" > "${BATS_TEST_TMPDIR}/truncated.sh"
+  run bash "${BATS_TEST_TMPDIR}/truncated.sh" --yes
+  assert_success
+  [ ! -e "$HOME/.local" ]
+}
