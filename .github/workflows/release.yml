@@ -68,7 +68,7 @@ jobs:
           IMAGE_REF: ${{ env.IMAGE }}:${{ github.ref_name }}
           DIGEST: ${{ steps.push.outputs.digest }}
         run: |
-          NOTES=$(printf '## Container Image\n\n```\ndocker pull %s\n```\n\nDigest: `%s`\n\n## Install\n\n```bash\ndocker run --rm \\\n  -v "$HOME/.local/bin:/.local/bin" \\\n  -v "$HOME/.local/share:/.local/share" \\\n  %s install\n```' "$IMAGE_REF" "$DIGEST" "$IMAGE_REF")
+          NOTES=$(printf '## Container Image\n\n```\ndocker pull %s\n```\n\nDigest: `%s`\n\n## Run\n\n```bash\ndocker run --rm %s\n```\n\nprints the README, including the full command to run kindtks.' "$IMAGE_REF" "$DIGEST" "$IMAGE_REF")
           gh release create "${{ github.ref_name }}" \
             --repo "${{ github.repository }}" \
             --generate-notes \

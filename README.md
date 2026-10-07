@@ -4,23 +4,38 @@ An opinionated customization of kind kubernetes with many thanks.
 
 Bootstraps fully configured clusters from pre-defined profiles.
 
-## Install
+## Run
+
+kindtks runs from its image; the host needs only Docker. Create the two directories once, then run any command:
 
 ```bash
-docker run --rm \
-  -v "$HOME/.local/bin:/.local/bin" \
-  -v "$HOME/.local/share:/.local/share" \
-  ghcr.io/null-ptr-exception/kindtks:latest install
+mkdir -p ~/.kube ~/.local/state/kindtks
+docker run --rm --network host \
+  --user "$(id -u):$(id -g)" --group-add "$(stat -c %g /var/run/docker.sock)" \
+  --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
+  -e HOME="$HOME" \
+  --mount type=bind,source="$HOME/.kube",target="$HOME/.kube" \
+  --mount type=bind,source="$HOME/.local/state/kindtks",target="$HOME/.local/state/kindtks" \
+  --mount type=bind,source="$PWD",target="$PWD",readonly -w "$PWD" \
+  ghcr.io/null-ptr-exception/kindtks:latest create gen1
 ```
 
-This copies the `kindtks` binary, profiles, and bundled Helm charts to `~/.local`. Make sure `~/.local/bin` is on your `$PATH`.
+In the rest of this document, `kindtks <args>` is short for this command with `<args>` in place of `create gen1`.
 
-### Prerequisites
+| Part | Why |
+|---|---|
+| `--network host` | profile scripts reach the cluster API on `127.0.0.1` |
+| docker socket, `--group-add` | Kind creates node containers on the host's Docker |
+| `--user` | files written on the host belong to you |
+| `-e HOME`, same-path mounts | the kubeconfig lands in your `~/.kube`; Kind mounts the state dir into nodes by its host path |
+| `$PWD` mount | `--config` files in the current directory are visible; mount other directories the same way |
+| `--mount` instead of `-v` | a missing directory fails instead of being created as root |
 
-- Docker
-- [kind](https://kind.sigs.k8s.io/) (v0.17+)
-- kubectl
-- helm (for profiles that use Helm charts)
+The image includes kind, kubectl, helm and every other tool the profiles use. To use the cluster afterwards from the host you still need your own kubectl (or run it from the image with `--entrypoint kubectl`).
+
+Air-gapped hosts: push this image to your registry and use that reference instead.
+
+Upgrading from 0.5.x: `kindtks install` is gone; `~/.local/bin/kindtks` and `~/.local/share/kindtks` are no longer used and can be deleted.
 
 ## Usage
 

@@ -56,7 +56,7 @@ setup_file() {
 
   # Clean VM state
   ssh_vm 'export PATH="$HOME/.local/bin:$PATH"; kind delete cluster --name gen1 2>/dev/null; true'
-  ssh_vm 'sudo rm -rf ~/.local/bin/kindtks ~/.local/share/kindtks'
+  ssh_vm 'rm -rf ~/.local/state/kindtks/gen1'
 }
 
 teardown_file() {
@@ -76,7 +76,7 @@ All required container images are already in the registry.
 
 Your task:
 1. Run the container image to discover what it does and how to use it (read its help output)
-2. Install the tool from the container image
+2. Run the tool from the container image as its help output describes
 3. Deploy a gen1 cluster using images from ${VM_REGISTRY} with registry authentication
 4. Verify all pods are Running
 5. Deploy a busybox pod named "app-dc2" in namespace "demo" that uses a PersistentVolumeClaim

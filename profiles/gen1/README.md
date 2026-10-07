@@ -16,6 +16,8 @@ Minimum 6 GB RAM recommended (3 nodes). Istio resource requests are nulled out; 
 
 ## Quick Start
 
+`kindtks` below is short for the `docker run` command in the [top-level README](../../README.md#run).
+
 ```bash
 kindtks create gen1
 kubectl config use-context kind-gen1
