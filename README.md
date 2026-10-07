@@ -12,30 +12,26 @@ Requires Docker and bash (Linux or WSL2).
 docker run --rm ghcr.io/null-ptr-exception/kindtks:latest install-script | bash
 ```
 
-The installer copies, out of the image:
-
-- `kindtks` to `~/.local/bin`;
-- the pinned `kind`, `kubectl` and `helm`, the profiles and the Helm charts to `~/.local/share/kindtks`. kindtks always runs profiles with these.
-
-It then checks `kind`, `kubectl` and `helm` on your `PATH` and offers to install the bundled version to `~/.local/bin` where one is missing or older. Tools are only ever installed into that directory; a file there that is a symlink is replaced, never written through.
+The installer copies `kindtks` to `~/.local/bin`, and the pinned `kind`, `kubectl` and `helm`, the profiles and the Helm charts to `~/.local/share/kindtks`; kindtks always runs profiles with these. It then offers the bundled `kind`, `kubectl` and `helm` for `~/.local/bin` where yours are missing or older. It writes nowhere else (a symlink there is replaced, not written through).
 
 Options, passed as `| bash -s -- <options>`:
 
 | Option | Effect |
 |---|---|
 | `--yes` | answer yes to every prompt (prompts need a terminal; without one they are skipped) |
-| `--no-tools` | skip the `PATH` check; install only kindtks and its private copies |
+| `--no-tools` | install only kindtks and its private copies |
 | `--dest DIR` | install kindtks, and any tools you accept, to `DIR` instead of `~/.local/bin` |
-
-Upgrade: run the same command with a newer image.
-
-Upgrading replaces `~/.local/share/kindtks` as a whole; keep your own profiles elsewhere and point `KINDTKS_PROFILES_DIR` at them.
 
 Air-gapped hosts: push the image to your registry and run the same command with that reference. The installer finds the pulled image by its build label, whatever its name.
 
-Bundled versions: kind v0.33.0, kubectl v1.33.1, helm v3.21.0. kubectl 1.33 is outside Kubernetes' version-skew policy for gen1's Kubernetes 1.24; kindtks' end-to-end tests cover this combination.
+Bundled versions: kind v0.33.0, kubectl v1.33.1, helm v3.21.0. kubectl 1.33 is outside Kubernetes' version-skew policy for gen1's Kubernetes 1.24; this combination is tested with gen1.
 
-Upgrading from 0.5.x: `kindtks install` is gone; run the installer above.
+### Upgrading
+
+- Run the installer again with a newer image. It replaces `~/.local/share/kindtks` as a whole; keep your own profiles elsewhere and point `KINDTKS_PROFILES_DIR` at them.
+- From 0.5.x: `kindtks install` is gone; use the installer above.
+- From 0.4.x: top-level `images` moved to `profiles.<profile>.images`.
+- From 0.3.x: top-level `registryAuth` was replaced by `registries.<registry>.auth`.
 
 ## Usage
 
@@ -56,13 +52,15 @@ kindtks delete gen1
 kindtks help gen1
 ```
 
-After creation, the kubectl context is set to `kind-<profile>` (e.g. `kind-gen1`).
+After creation, the kubectl context is set to `kind-<cluster>` (e.g. `kind-gen1`).
 
 ## Profiles
 
 Each profile has its own documentation accessible via `kindtks help <profile>`.
 
 - **gen1** — Cilium, Istio, Vault, Vault Secrets Operator (`kindtks help gen1`)
+
+A profile is a directory with an `install.sh` defining `create` and `delete`; it reads its options with `"$KINDTKS_BIN" value <dot.path>` (lists print one item per line).
 
 ## Configuration
 
@@ -89,8 +87,6 @@ kindtks config gen1 --schema > kindtks.schema.json
 # yaml-language-server: $schema=./kindtks.schema.json
 ```
 
-Profile scripts read their options with `"$KINDTKS_BIN" value <dot.path>` (lists print one item per line).
-
 ## Custom Image Registry
 
 Override image references with a config file to pull from a private or air-gapped registry:
@@ -116,19 +112,18 @@ profiles:
             vault-secrets-operator: registry.internal:5000/ghcr.io/ricoberger/vault-secrets-operator:v1.26.0
 ```
 
-Private registries are automatically trusted as insecure (HTTP): kindtks writes a containerd `hosts.toml` for each one and mounts it into every Kind node. The following well-known registries are excluded from this auto-trust: docker.io, quay.io, ghcr.io, gcr.io, registry.k8s.io, k8s.gcr.io, mcr.microsoft.com, public.ecr.aws. Everything else is treated as private.
+Private registries used by the profile's images are trusted as insecure (HTTP): kindtks writes a containerd `hosts.toml` for each one and mounts it into every Kind node. A registry counts as private unless it is one of docker.io (also index.docker.io, registry-1.docker.io), quay.io, ghcr.io, gcr.io, registry.k8s.io, k8s.gcr.io, mcr.microsoft.com, public.ecr.aws.
+
+The `kind-node` image is different: kind pulls it with the host's Docker, so `registries` settings do not apply to it. The host needs access to that registry itself (`docker login`, and `insecure-registries` in Docker's `daemon.json` for plain HTTP), or the image pulled beforehand.
 
 ### Per-registry settings
 
-The `registries` section configures containerd per registry:
+The `registries` section configures containerd in the Kind nodes, per registry:
 
 - `hosts`: raw content of containerd's [`hosts.toml`](https://github.com/containerd/containerd/blob/main/docs/hosts.md) for that registry. Replaces the auto-trust config for a private registry.
-- `auth`: username and password, for registries that need authentication (HTTP or HTTPS).
+- `auth`: `{username, password}`, or `prompt` to be asked at `kindtks create`. Applies to the host containerd actually connects to, so for a mirror needing credentials, put `auth` under the mirror's host, not the upstream registry.
 
-Migrating from 0.3.0: top-level `registryAuth` was replaced by `registries.<registry>.auth`.
-Migrating from 0.4.0: top-level `images` moved to `profiles.<profile>.images`.
-
-Changing `registries` requires re-creating the cluster: the host files are only written and mounted at `create` time. `auth` applies to the host containerd actually connects to, so for a mirror needing credentials, put `auth` under the mirror's host, not the upstream registry.
+Changing `registries` requires re-creating the cluster: the settings are only applied at `create`. Host files are written to `~/.local/state/kindtks/<profile>/certs.d/` and removed by `kindtks delete`.
 
 Authentication:
 
@@ -144,7 +139,7 @@ registries:
             password: secret-token
 ```
 
-To keep the password out of the file, set `auth: prompt`. `kindtks create` then asks for the username and password on the terminal (from the second such registry on, it offers to reuse the previous one) and fails when there is no terminal:
+To keep the password out of the file, use `auth: prompt`. `kindtks create` then asks for the username and password on the terminal (from the second such registry on, it offers to reuse the previous one) and fails when there is no terminal:
 
 ```yaml
 registries:
@@ -152,7 +147,13 @@ registries:
         auth: prompt
 ```
 
-`kindtks create` checks every registry's credentials against the registry before creating anything, the way `docker login` does. Prompted credentials that are rejected are asked for again (up to three times); rejected credentials from the file stop `create`, while file credentials that cannot be checked (for example the registry is unreachable from the host) only print a warning. `--skip-auth-check` turns the check off, for example when the host cannot reach a registry that the Kind nodes can.
+Before creating anything, `kindtks create` checks every registry's credentials the way `docker login` does:
+
+- prompted credentials that are rejected are asked for again, up to three times;
+- rejected credentials from the file stop `create`;
+- credentials from the file that cannot be checked (for example, the registry is unreachable from the host) only print a warning.
+
+`--skip-auth-check` turns the check off.
 
 Pull-through mirror: images keep their normal names and containerd pulls them through the mirror, falling back to the upstream registry if the mirror is down. An override config only needs the `registries` section:
 
@@ -166,10 +167,4 @@ registries:
               override_path = true
 ```
 
-Host files are written to `~/.local/state/kindtks/<profile>/certs.d/` and removed by `kindtks delete`. The mirror must be reachable from the Kind nodes (e.g. a container on the `kind` Docker network).
-
-Note: `kind` pulls the node image from the local Docker daemon, not from inside the cluster. In an air-gapped environment, pre-pull it so it's available locally:
-
-```bash
-docker pull registry.internal:5000/kindest/node:v1.24.17
-```
+The mirror must be reachable from the Kind nodes (e.g. a container on the `kind` Docker network).
