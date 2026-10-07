@@ -4,38 +4,36 @@ An opinionated customization of kind kubernetes with many thanks.
 
 Bootstraps fully configured clusters from pre-defined profiles.
 
-## Run
+## Install
 
-kindtks runs from its image; the host needs only Docker. Create the two directories once, then run any command:
+Requires Docker and bash (Linux or WSL2).
 
 ```bash
-mkdir -p ~/.kube ~/.local/state/kindtks
-docker run --rm --network host \
-  --user "$(id -u):$(id -g)" --group-add "$(stat -c %g /var/run/docker.sock)" \
-  --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
-  -e HOME="$HOME" \
-  --mount type=bind,source="$HOME/.kube",target="$HOME/.kube" \
-  --mount type=bind,source="$HOME/.local/state/kindtks",target="$HOME/.local/state/kindtks" \
-  --mount type=bind,source="$PWD",target="$PWD",readonly -w "$PWD" \
-  ghcr.io/null-ptr-exception/kindtks:latest create gen1
+docker run --rm ghcr.io/null-ptr-exception/kindtks:latest install-script | bash
 ```
 
-In the rest of this document, `kindtks <args>` is short for this command with `<args>` in place of `create gen1`.
+The installer copies, out of the image:
 
-| Part | Why |
+- `kindtks` to `~/.local/bin`;
+- the pinned `kind`, `kubectl` and `helm`, the profiles and the Helm charts to `~/.local/share/kindtks`. kindtks always runs profiles with these.
+
+It then checks `kind`, `kubectl` and `helm` on your `PATH` and offers to install the bundled version to `~/.local/bin` where one is missing or older. Nothing outside that directory is changed.
+
+Options, passed as `| bash -s -- <options>`:
+
+| Option | Effect |
 |---|---|
-| `--network host` | profile scripts reach the cluster API on `127.0.0.1` |
-| docker socket, `--group-add` | Kind creates node containers on the host's Docker |
-| `--user` | files written on the host belong to you |
-| `-e HOME`, same-path mounts | the kubeconfig lands in your `~/.kube`; Kind mounts the state dir into nodes by its host path |
-| `$PWD` mount | `--config` files in the current directory are visible; mount other directories the same way |
-| `--mount` instead of `-v` | a missing directory fails instead of being created as root |
+| `--yes` | answer yes to every prompt (prompts need a terminal; without one they are skipped) |
+| `--no-tools` | skip the `PATH` check; install only kindtks and its private copies |
+| `--dest DIR` | install to `DIR` instead of `~/.local/bin` |
 
-The image includes kind, kubectl, helm and every other tool the profiles use. To use the cluster afterwards from the host you still need your own kubectl (or run it from the image with `--entrypoint kubectl`).
+Upgrade: run the same command with a newer image.
 
-Air-gapped hosts: push this image to your registry and use that reference instead; add `-e KINDTKS_IMAGE=<your reference>` so the help and hints kindtks prints show it too.
+Air-gapped hosts: push the image to your registry and run the same command with that reference. The installer finds the pulled image by its build label, whatever its name.
 
-Upgrading from 0.5.x: `kindtks install` is gone; `~/.local/bin/kindtks` and `~/.local/share/kindtks` are no longer used and can be deleted.
+Bundled versions: kind v0.33.0, kubectl v1.33.1, helm v3.21.0. kubectl 1.33 is outside Kubernetes' version-skew policy for gen1's Kubernetes 1.24; kindtks' end-to-end tests cover this combination.
+
+Upgrading from 0.5.x: `kindtks install` is gone; run the installer above.
 
 ## Usage
 

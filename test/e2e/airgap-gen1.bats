@@ -57,7 +57,7 @@ teardown_file() {
 # --- Phase 1: Build and push ---
 
 @test "build kindtks image" {
-  run docker build -t kindtks:airgap-test "${BATS_TEST_DIRNAME}/../../"
+  run docker build --build-arg BUILD_ID="airgap-$(date +%s)" -t kindtks:airgap-test "${BATS_TEST_DIRNAME}/../../"
   assert_success
 }
 
@@ -111,14 +111,15 @@ teardown_file() {
 
 @test "clean VM state" {
   ssh_vm 'export PATH="$HOME/.local/bin:$PATH"; kind delete cluster --name gen1 2>/dev/null; true'
-  ssh_vm 'rm -rf ~/.local/state/kindtks/gen1'
+  ssh_vm 'rm -rf ~/.local/bin/kindtks ~/.local/share/kindtks ~/.local/state/kindtks/gen1'
   ssh_vm 'docker system prune -af' || true
   assert true
 }
 
-@test "pull kindtks image in VM" {
-  run ssh_vm "docker pull ${VM_REGISTRY}/kindtks:airgap-test"
+@test "install kindtks in VM" {
+  run ssh_vm "docker run --rm ${VM_REGISTRY}/kindtks:airgap-test install-script | bash -s -- --yes"
   assert_success
+  assert_output --partial "Get started: kindtks list"
 }
 
 @test "create gen1 cluster with registry auth" {
@@ -145,16 +146,7 @@ registries:
             password: airgap
 EOF
 
-mkdir -p ~/.kube ~/.local/state/kindtks
-cd ~
-docker run --rm --network host \
-  --user "\$(id -u):\$(id -g)" --group-add "\$(stat -c %g /var/run/docker.sock)" \
-  --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
-  -e HOME="\$HOME" \
-  --mount type=bind,source="\$HOME/.kube",target="\$HOME/.kube" \
-  --mount type=bind,source="\$HOME/.local/state/kindtks",target="\$HOME/.local/state/kindtks" \
-  --mount type=bind,source="\$PWD",target="\$PWD",readonly -w "\$PWD" \
-  ${VM_REGISTRY}/kindtks:airgap-test create gen1 --config airgap-config.yaml
+kindtks create gen1 --config ~/airgap-config.yaml
 SSH
   assert_success
 }
