@@ -2,7 +2,12 @@
 
 load '../helpers/test_helper'
 
+setup_file() {
+  go build -o "${BATS_FILE_TMPDIR}/kindtks" "${BATS_TEST_DIRNAME}/../../"
+}
+
 setup() {
+  export KINDTKS_BIN="${BATS_FILE_TMPDIR}/kindtks"
   export KINDTKS_PROFILE_DIR="${BATS_TEST_DIRNAME}/../../profiles/gen1"
   export KINDTKS_CHARTS_DIR="/fake/charts"
 
@@ -108,7 +113,7 @@ MOCK
 
 @test "envsubst resolves cilium image refs" {
   split_image_refs
-  run envsubst < "${KINDTKS_PROFILE_DIR}/values-cilium.yaml"
+  run "$KINDTKS_BIN" envsubst < "${KINDTKS_PROFILE_DIR}/values-cilium.yaml"
   assert_output --partial "repository: quay.io/cilium/cilium"
   assert_output --partial "tag: v1.13.10"
   refute_output --partial '${IMAGE_'
@@ -116,21 +121,21 @@ MOCK
 
 @test "envsubst resolves istio hub and tag" {
   split_image_refs
-  run envsubst < "${KINDTKS_PROFILE_DIR}/values-istiod.yaml"
+  run "$KINDTKS_BIN" envsubst < "${KINDTKS_PROFILE_DIR}/values-istiod.yaml"
   assert_output --partial "hub: docker.io/istio"
   assert_output --partial "tag: 1.16.7"
 }
 
 @test "envsubst resolves vault image" {
   split_image_refs
-  run envsubst < "${KINDTKS_PROFILE_DIR}/values-vault.yaml"
+  run "$KINDTKS_BIN" envsubst < "${KINDTKS_PROFILE_DIR}/values-vault.yaml"
   assert_output --partial "repository: docker.io/hashicorp/vault"
   assert_output --partial "tag: 2.0.3"
 }
 
 @test "envsubst resolves vault-secrets-operator image" {
   split_image_refs
-  run envsubst < "${KINDTKS_PROFILE_DIR}/values-vault-secrets-operator.yaml"
+  run "$KINDTKS_BIN" envsubst < "${KINDTKS_PROFILE_DIR}/values-vault-secrets-operator.yaml"
   assert_output --partial "repository: ghcr.io/ricoberger/vault-secrets-operator"
   assert_output --partial "tag: v1.26.0"
 }
@@ -142,10 +147,10 @@ MOCK
   export IMAGE_VAULT="corp.example.com/vault:2.0.3"
   split_image_refs
 
-  run envsubst < "${KINDTKS_PROFILE_DIR}/values-cilium.yaml"
+  run "$KINDTKS_BIN" envsubst < "${KINDTKS_PROFILE_DIR}/values-cilium.yaml"
   assert_output --partial "repository: corp.example.com/cilium"
 
-  run envsubst < "${KINDTKS_PROFILE_DIR}/values-vault.yaml"
+  run "$KINDTKS_BIN" envsubst < "${KINDTKS_PROFILE_DIR}/values-vault.yaml"
   assert_output --partial "repository: corp.example.com/vault"
 }
 
@@ -251,5 +256,10 @@ MOCK
 
 @test "no profile calls openssl" {
   run grep -rn 'openssl' "${BATS_TEST_DIRNAME}/../../profiles"
+  assert_failure
+}
+
+@test "no profile calls envsubst directly" {
+  run grep -rnE '(^|[|;&(])\s*envsubst\b' "${BATS_TEST_DIRNAME}/../../profiles"
   assert_failure
 }

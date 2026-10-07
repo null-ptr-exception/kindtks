@@ -26,7 +26,7 @@ helm_install() {
   if [ -f "$values_file" ]; then
     local tmp
     tmp=$(mktemp)
-    envsubst < "$values_file" > "$tmp"
+    "$KINDTKS_BIN" envsubst < "$values_file" > "$tmp"
     args+=(--values "$tmp")
   fi
   helm install "$name" "$chart" \
