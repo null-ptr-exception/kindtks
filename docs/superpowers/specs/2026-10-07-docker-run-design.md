@@ -67,7 +67,7 @@ Alpine keeps only the latest revision of a package per branch, so a pinned apk v
 
 ## kindtks changes
 
-- **Directories.** Profiles dir = `$KINDTKS_PROFILES_DIR`, charts dir = `$KINDTKS_CHARTS_DIR`. If unset, kindtks errors and says to run it via the image (`docker run --rm <image>`). `~/.local/share/kindtks` and `KINDTKS_DATA_DIR` go away. State dir unchanged (`$XDG_STATE_HOME/kindtks`, default `~/.local/state/kindtks`).
+- **Directories.** Profiles dir = `$KINDTKS_PROFILES_DIR`; if unset, kindtks errors and says to run it via the image (`docker run --rm <image>`). `KINDTKS_CHARTS_DIR` is not read by kindtks; profile scripts inherit it from the environment. `~/.local/share/kindtks` and `KINDTKS_DATA_DIR` go away. State dir unchanged (`$XDG_STATE_HOME/kindtks`, default `~/.local/state/kindtks`).
 - **No arguments.** `kindtks` with no arguments prints the project README (already embedded via `SetProjectReadme`), whose first section is the run command above with the tag of this build in place of `<version>` (taken from `KINDTKS_IMAGE`; outside the image, `latest`).
 - **Mount checks.** When `KINDTKS_IMAGE` is set, `create` and `delete` first check, and on failure print what is missing plus the run command:
   - `HOME` is absolute and not `/`;
