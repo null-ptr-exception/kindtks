@@ -151,3 +151,13 @@ func TestProfileStateDir_IgnoresRelativeXDGStateHome(t *testing.T) {
 		t.Errorf("profileStateDir = %q, want %q", got, want)
 	}
 }
+
+func TestPrepareKindConfig_RefusesUnaskedPrompt(t *testing.T) {
+	cfg := &config.Config{Registries: map[string]*config.Registry{
+		"a.example.com": {Auth: &config.RegistryAuth{Prompt: true}},
+	}}
+	_, _, err := prepareKindConfig(writeTestKindConfig(t), cfg, t.TempDir())
+	if err == nil || !strings.Contains(err.Error(), "a.example.com") {
+		t.Fatalf("got %v", err)
+	}
+}

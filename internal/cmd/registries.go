@@ -51,6 +51,9 @@ func clearDir(dir string) error {
 // otherwise a patched temp copy removed by the returned cleanup func.
 func prepareKindConfig(kindCfgPath string, cfg *config.Config, stateDir string) (string, func(), error) {
 	noop := func() {}
+	if regs := cfg.PromptRegistries(); len(regs) > 0 {
+		return "", noop, fmt.Errorf("credentials for %s were not entered", strings.Join(regs, ", "))
+	}
 	certsDir := filepath.Join(stateDir, "certs.d")
 
 	if regs := cfg.PrivateRegistries(); len(regs) > 0 {
