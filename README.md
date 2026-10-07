@@ -152,7 +152,7 @@ registries:
         auth: prompt
 ```
 
-`kindtks create` checks every registry's credentials against the registry before creating anything, the way `docker login` does. Prompted credentials that are rejected are asked for again (up to three times); rejected credentials from the file stop `create`. `--skip-auth-check` turns the check off, for example when the host cannot reach a registry that the Kind nodes can.
+`kindtks create` checks every registry's credentials against the registry before creating anything, the way `docker login` does. Prompted credentials that are rejected are asked for again (up to three times); rejected credentials from the file stop `create`, while file credentials that cannot be checked (for example the registry is unreachable from the host) only print a warning. `--skip-auth-check` turns the check off, for example when the host cannot reach a registry that the Kind nodes can.
 
 Pull-through mirror: images keep their normal names and containerd pulls them through the mirror, falling back to the upstream registry if the mirror is down. An override config only needs the `registries` section:
 

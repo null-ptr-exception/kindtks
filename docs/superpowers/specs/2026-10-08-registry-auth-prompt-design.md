@@ -26,11 +26,11 @@ registries:
 
 All of this happens after the config is resolved and before the kind config is written or any cluster is created.
 
-1. **Credentials from the file** are checked (see Checking). Rejected → `create` stops with the registry's answer. Could not check → stops, naming `--skip-auth-check`.
+1. **Credentials from the file** are checked (see Checking). Rejected → `create` stops with the registry's answer. Could not check → print `warning: could not check the credentials for <reg>: <err>; continuing (use --skip-auth-check to skip checking)` and continue. An empty username or password in the file stops `create` with `registries.<reg>.auth has an empty username or password`, before any check and also with `--skip-auth-check`.
 2. **Registries with `auth: prompt`**, in sorted order:
    - With no terminal (`/dev/tty` cannot be opened): stop with `registries.<reg>.auth is "prompt", but there is no terminal to ask on`.
    - From the second prompted registry on, when earlier credentials were entered: `Use the same as <previous registry> (<username>)? [Y/n]` (default yes). The offer is the most recently accepted credentials.
-   - Otherwise (or on "n"): `Username:` (echoed) and `Password:` (not echoed). Empty username or password → ask again (counts as an attempt).
+   - Otherwise (or on "n"): `  Username for <reg>: ` (echoed) and `  Password for <reg>: ` (not echoed; only trailing CR/LF is trimmed). Empty username or password → ask again (counts as an attempt).
    - Each entry is checked right away:
      - `ok` → next registry;
      - rejected → `rejected by <reg> (<status>)`, ask again; at most 3 attempts per registry, then `create` stops. Rejected reused credentials fall back to asking.
@@ -46,14 +46,15 @@ Same handshake as `docker login`:
 
 1. `GET <endpoint>/v2/` without credentials.
    - `200` → the registry needs no login.
-   - `401` with `WWW-Authenticate: Basic …` → repeat with HTTP basic auth: `200` ok, `401`/`403` rejected.
+   - A redirect is followed only on this unauthenticated probe, once, from `http` to `https` on the same hostname (port may differ); the rest of the check then uses the redirected `https://host[:port]`. Any other redirect → could not check. The credentialed request never follows redirects.
+   - `401` with `WWW-Authenticate: Basic …` → repeat with HTTP basic auth (always sent, even when empty): `200` ok, `401`/`403` rejected.
    - `401` with `WWW-Authenticate: Bearer realm=…,service=…` → `GET <realm>?service=<service>&scope=<scope>…` with HTTP basic auth: `200` ok, `401`/`403` rejected.
    - anything else, or a network/DNS/TLS error → could not check.
 2. Scope (bearer only): one `scope=repository:<repo>:pull` per profile image on that registry (`docker.io` images without a namespace get `library/`). No images on that registry → no scope (login only).
 
 Endpoint (scheme, host, TLS verification) follows what containerd will use for that host name:
 
-- If a hosts file kindtks writes for any registry (explicit `hosts`, or the generated auto-trust file) names a URL whose host:port is this registry name — as `server` or a `[host."…"]` key — use that URL's scheme and host, and skip TLS verification when that section sets `skip_verify = true`.
+- The registry's own hosts file is checked first, then the other registries' in sorted order. If a hosts file kindtks writes (explicit `hosts`, or the generated auto-trust file) names a URL whose host:port is this registry name — as `server` or a `[host."…"]` key — use that URL's scheme and host, and skip TLS verification when that section sets `skip_verify = true`.
 - Else `docker.io` → `https://registry-1.docker.io`.
 - Else → `https://<name>`, verifying TLS.
 
@@ -72,7 +73,7 @@ Spike (2026-10-08), standard library only: `registry:2` with htpasswd → right 
 
 - `internal/regauth`: `httptest` servers for basic ok/rejected, bearer ok/rejected (realm on the same test server, scope passed through), no auth, unexpected status, connection refused, TLS to plain HTTP.
 - `internal/config`: schema accepts `prompt`, rejects other strings; `prompt` survives merge and typed decoding; endpoint selection (explicit hosts, generated auto-trust, docker.io, default https); scopes from images.
-- `internal/cmd` prompt flow with a fake terminal and fake checker: single registry ok; rejected then ok; three rejections → error; reuse yes/no; reused rejected → asks; empty input; could-not-check continue/stop; no terminal; no-auth note; `--skip-auth-check`; file credentials rejected → error before prompting.
+- `internal/cmd` prompt flow with a fake terminal and fake checker: single registry ok; rejected then ok; three rejections → error; reuse yes/no; reused rejected → asks; empty input; could-not-check continue/stop (prompted) and warning (file); empty file credentials; no terminal; no-auth note; `--skip-auth-check`; file credentials rejected → error before prompting.
 - E2e (`test/e2e/registry-auth.bats`): a local `registry:2` with htpasswd on a random port and a test profile whose `create()` only prints the generated kind config (no cluster is created). Cases: wrong credentials in the file → `create` fails before the profile runs; `auth: prompt` answered through a pseudo-terminal (`script -qec … /dev/null` fed on stdin) with a wrong then a right password → one rejection message, and the printed kind config contains the auth patch.
 - README: `auth: prompt`, checking, `--skip-auth-check`.
 
