@@ -22,6 +22,8 @@ REQUIRES="kind kubectl helm envsubst"
 create() {
   kind create cluster --name ${CLUSTER_NAME} --image kindest/node:v1.24.17 --config "\$KINDTKS_KIND_CONFIG"
   kubectl --context kind-${CLUSTER_NAME} get nodes
+  echo 'ns: \${CHART_NS}' | CHART_NS=istio-system envsubst
+  helm --kube-context kind-${CLUSTER_NAME} install istio-base "\$KINDTKS_CHARTS_DIR/base-1.16.7.tgz" --namespace istio-system --create-namespace
 }
 
 delete() {
@@ -71,6 +73,15 @@ kt() {
   assert_output --partial "ghcr.io/null-ptr-exception/kindtks:dev create gen1"
 }
 
+@test "image's own profiles list and config" {
+  run docker run --rm "$IMAGE" list
+  assert_success
+  assert_output --partial "gen1"
+  run docker run --rm "$IMAGE" config gen1
+  assert_success
+  assert_output --partial "extraHosts"
+}
+
 @test "missing kube mount is reported with a hint" {
   run docker run --rm --user "$(id -u):$(id -g)" \
     --group-add "$(stat -c %g /var/run/docker.sock)" \
@@ -88,6 +99,8 @@ kt() {
   run kt create "$PROFILE" --config my.yaml
   assert_success
   assert_output --partial "${CLUSTER_NAME}-control-plane"
+  assert_output --partial "ns: istio-system"
+  assert_output --partial "STATUS: deployed"
 }
 
 @test "host files belong to the user" {
