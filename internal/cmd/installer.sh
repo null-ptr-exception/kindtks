@@ -46,7 +46,12 @@ fi
 image=$(docker images -q --filter "label=io.kindtks.build=$BUILD_ID" | head -n 1)
 [ -n "$image" ] || die "kindtks image with build $BUILD_ID not found locally"
 cid=$(docker create "$image")
-trap 'docker rm "$cid" >/dev/null 2>&1 || true' EXIT
+tmp_files=()
+cleanup() {
+  docker rm "$cid" >/dev/null 2>&1 || true
+  if [ ${#tmp_files[@]} -gt 0 ]; then rm -f "${tmp_files[@]}"; fi
+}
+trap cleanup EXIT
 
 copy_out() { # copy_out PATH_IN_IMAGE HOST_PATH
   local out
@@ -66,7 +71,12 @@ for dir in bin profiles charts; do
   rm -rf "${DATA_DIR:?}/$dir"
   mv "$DATA_DIR/$dir.new" "$DATA_DIR/$dir"
 done
-copy_out /usr/local/bin/kindtks "$DEST/kindtks"
+# Write via a temp file in DEST and rename, so a symlink at the final name is
+# replaced instead of its target being overwritten.
+tmp="$DEST/.kindtks-install.kindtks.$$"
+tmp_files+=("$tmp")
+copy_out /usr/local/bin/kindtks "$tmp"
+mv -f "$tmp" "$DEST/kindtks"
 
 installed=("kindtks -> $DEST/kindtks")
 skipped=()
@@ -154,7 +164,10 @@ if [ "$TOOLS" = 1 ]; then
       fi
     fi
     if confirm "$question"; then
-      cp "$DATA_DIR/bin/$tool" "$DEST/$tool"
+      tmp="$DEST/.kindtks-install.$tool.$$"
+      tmp_files+=("$tmp")
+      cp "$DATA_DIR/bin/$tool" "$tmp"
+      mv -f "$tmp" "$DEST/$tool"
       installed+=("$tool $bundled -> $DEST/$tool")
     else
       skipped+=("$tool")

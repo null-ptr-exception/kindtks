@@ -49,7 +49,9 @@ case "$1" in
     if [ -n "${FAKE_DOCKER_DOWN:-}" ]; then echo "Cannot connect to the Docker daemon" >&2; exit 1; fi ;;
   images) [ -n "${FAKE_IMAGE_MISSING:-}" ] || echo "fakeimage123" ;;
   create) echo "fakecid" ;;
-  cp) rm -rf "$3"; cp -r "${FAKE_IMAGE_ROOT}${2#fakecid:}" "$3" ;;
+  cp)
+    src="${FAKE_IMAGE_ROOT}${2#fakecid:}"
+    if [ -d "$src" ]; then rm -rf "$3"; cp -r "$src" "$3"; else cp "$src" "$3"; fi ;;
   rm) ;;
 esac
 MOCK
@@ -157,4 +159,23 @@ MOCK
   run bash "$INSTALLER" --bogus
   assert_failure 2
   assert_output --partial "unknown option: --bogus"
+}
+
+@test "symlinks in the destination are replaced, not written through" {
+  mkdir -p "$DEST" "${BATS_TEST_TMPDIR}/elsewhere"
+  fake_tool "${BATS_TEST_TMPDIR}/elsewhere" helm v3.10.0
+  printf '#!/usr/bin/env bash\necho old\n' > "${BATS_TEST_TMPDIR}/elsewhere/kindtks"
+  chmod +x "${BATS_TEST_TMPDIR}/elsewhere/kindtks"
+  ln -s "${BATS_TEST_TMPDIR}/elsewhere/helm" "$DEST/helm"
+  ln -s "${BATS_TEST_TMPDIR}/elsewhere/kindtks" "$DEST/kindtks"
+  PATH="$MOCK_BIN:$DEST:/usr/bin:/bin" run bash "$INSTALLER" --yes
+  assert_success
+  run "${BATS_TEST_TMPDIR}/elsewhere/helm"
+  assert_output "v3.10.0+gabcdef0"
+  run "${BATS_TEST_TMPDIR}/elsewhere/kindtks"
+  assert_output "old"
+  [ ! -L "$DEST/helm" ]
+  [ ! -L "$DEST/kindtks" ]
+  [ -x "$DEST/helm" ]
+  [ -x "$DEST/kindtks" ]
 }
