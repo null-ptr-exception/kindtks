@@ -1,5 +1,7 @@
 # Run kindtks from its Docker image
 
+> Superseded by `2026-10-08-bundled-installer-design.md` before release.
+
 Drop the host install step. kindtks, its profiles, charts, and every tool the profiles need ship in the image; the host needs only Docker. Users run each command with `docker run`.
 
 ## Problem
