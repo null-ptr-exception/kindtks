@@ -230,13 +230,42 @@ func TestCredentials_FileCredentials(t *testing.T) {
 	}
 
 	cfg = cfgWith(map[string]*config.RegistryAuth{"down.example.com": {Username: "u", Password: "p"}})
-	if _, err := runFlow(cfg, nil, fakeCheck(&calls)); err == nil || !strings.Contains(err.Error(), "--skip-auth-check") {
-		t.Errorf("could not check: got %v", err)
+	out, err := runFlow(cfg, nil, fakeCheck(&calls))
+	if err != nil {
+		t.Errorf("could not check: want warning, got %v", err)
+	}
+	want := "warning: could not check the credentials for down.example.com: dial tcp: connection refused; continuing (use --skip-auth-check to skip checking)"
+	if !strings.Contains(out, want) {
+		t.Errorf("output:\n%s", out)
 	}
 
 	cfg = cfgWith(map[string]*config.RegistryAuth{"a.example.com": {Username: "u", Password: "right"}})
 	if _, err := runFlow(cfg, nil, fakeCheck(&calls)); err != nil {
 		t.Errorf("accepted: %v", err)
+	}
+}
+
+func TestCredentials_EmptyFileCredentials(t *testing.T) {
+	for _, auth := range []*config.RegistryAuth{{Username: "", Password: "p"}, {Username: "u", Password: ""}} {
+		for _, check := range []checkFunc{fakeCheck(new([]string)), nil} {
+			cfg := cfgWith(map[string]*config.RegistryAuth{"a.example.com": auth})
+			_, err := runFlow(cfg, nil, check)
+			if err == nil || err.Error() != "registries.a.example.com.auth has an empty username or password" {
+				t.Errorf("%+v check=%v: got %v", auth, check != nil, err)
+			}
+		}
+	}
+}
+
+func TestCredentials_PromptsNameTheRegistry(t *testing.T) {
+	var calls []string
+	cfg := cfgWith(map[string]*config.RegistryAuth{"a.example.com": prompt()})
+	term := &fakeTerm{answers: []string{"svc", "right"}}
+	if _, err := runFlow(cfg, term, fakeCheck(&calls)); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(term.prompts, "|"); got != "  Username for a.example.com: |  Password for a.example.com: " {
+		t.Errorf("prompts: %q", got)
 	}
 }
 

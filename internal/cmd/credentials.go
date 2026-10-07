@@ -37,6 +37,12 @@ type credentials struct {
 }
 
 func (f *credentialFlow) run() error {
+	for _, name := range f.cfg.AuthRegistries() {
+		auth := f.cfg.Registries[name].Auth
+		if !auth.Prompt && (auth.Username == "" || auth.Password == "") {
+			return fmt.Errorf("registries.%s.auth has an empty username or password", name)
+		}
+	}
 	if f.check != nil {
 		for _, name := range f.cfg.AuthRegistries() {
 			auth := f.cfg.Registries[name].Auth
@@ -45,7 +51,8 @@ func (f *credentialFlow) run() error {
 			}
 			res, err := f.check(name, auth.Username, auth.Password)
 			if err != nil {
-				return fmt.Errorf("could not check the credentials for %s: %v (use --skip-auth-check to create anyway)", name, err)
+				fmt.Fprintf(f.out, "warning: could not check the credentials for %s: %v; continuing (use --skip-auth-check to skip checking)\n", name, err)
+				continue
 			}
 			switch res.Status {
 			case regauth.Rejected:
@@ -92,11 +99,11 @@ func (f *credentialFlow) ask(name string, last *credentials) (*credentials, erro
 		}
 	}
 	for attempt := 0; attempt < maxAttempts; attempt++ {
-		user, err := f.term.ReadLine("  Username: ")
+		user, err := f.term.ReadLine("  Username for " + name + ": ")
 		if err != nil {
 			return nil, inputErr(name, err)
 		}
-		pass, err := f.term.ReadPassword("  Password: ")
+		pass, err := f.term.ReadPassword("  Password for " + name + ": ")
 		if err != nil {
 			return nil, inputErr(name, err)
 		}
