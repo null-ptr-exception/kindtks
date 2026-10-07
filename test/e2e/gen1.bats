@@ -6,13 +6,14 @@ CLUSTER_NAME="gen1-e2e"
 
 setup_file() {
   export E2E_HOME="${BATS_FILE_TMPDIR}/home"
-  mkdir -p "${E2E_HOME}/.local/bin" "${E2E_HOME}/.local/share/kindtks"
+  mkdir -p "${E2E_HOME}/.local/bin"
 
   # Build kindtks binary
   go build -o "${E2E_HOME}/.local/bin/kindtks" "${BATS_TEST_DIRNAME}/../../"
 
-  # Copy profiles
-  cp -r "${BATS_TEST_DIRNAME}/../../profiles" "${E2E_HOME}/.local/share/kindtks/profiles"
+  # Profiles and charts, as the image provides them
+  export KINDTKS_PROFILES_DIR="${BATS_FILE_TMPDIR}/profiles"
+  cp -r "${BATS_TEST_DIRNAME}/../../profiles" "$KINDTKS_PROFILES_DIR"
 
   # Pull charts if not cached
   local charts_cache="${BATS_TEST_DIRNAME}/../../.cache/charts"
@@ -20,11 +21,11 @@ setup_file() {
     mkdir -p "$charts_cache"
     "${BATS_TEST_DIRNAME}/../../scripts/pull-charts.sh" "$charts_cache"
   fi
-  cp -r "$charts_cache" "${E2E_HOME}/.local/share/kindtks/charts"
+  export KINDTKS_CHARTS_DIR="$charts_cache"
 
   # Use a unique cluster name to avoid collisions
   sed -i "s/CLUSTER_NAME=\"gen1\"/CLUSTER_NAME=\"${CLUSTER_NAME}\"/" \
-    "${E2E_HOME}/.local/share/kindtks/profiles/gen1/install.sh"
+    "${KINDTKS_PROFILES_DIR}/gen1/install.sh"
 
   # Create the cluster
   cat > "${BATS_FILE_TMPDIR}/config.yaml" <<'EOF'

@@ -12,7 +12,8 @@ PROFILE="rh-e2e"
 
 setup_file() {
   export E2E_HOME="${BATS_FILE_TMPDIR}/home"
-  local profile_dir="${E2E_HOME}/.local/share/kindtks/profiles/${PROFILE}"
+  export KINDTKS_PROFILES_DIR="${BATS_FILE_TMPDIR}/profiles"
+  local profile_dir="${KINDTKS_PROFILES_DIR}/${PROFILE}"
   mkdir -p "${E2E_HOME}/.local/bin" "$profile_dir"
 
   go build -o "${E2E_HOME}/.local/bin/kindtks" "${BATS_TEST_DIRNAME}/../../"
