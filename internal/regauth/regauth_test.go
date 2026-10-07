@@ -190,3 +190,63 @@ func TestCheck_RefusesPlainHTTPRealmFromHTTPS(t *testing.T) {
 		t.Errorf("plain-HTTP realm received %v", *got)
 	}
 }
+
+func redirectTo(target string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target+r.URL.Path, http.StatusMovedPermanently)
+	}))
+}
+
+func TestCheck_ProbeFollowsHTTPToHTTPSRedirect(t *testing.T) {
+	tls := httptest.NewTLSServer(basicHandler("u", "p"))
+	defer tls.Close()
+	redir := redirectTo(tls.URL)
+	defer redir.Close()
+	ep := Endpoint{URL: redir.URL, SkipVerify: true}
+	if r, err := check(t, ep, "u", "p", nil); err != nil || r.Status != OK {
+		t.Errorf("right: %+v, %v", r, err)
+	}
+	if r, err := check(t, ep, "u", "wrong", nil); err != nil || r.Status != Rejected {
+		t.Errorf("wrong: %+v, %v", r, err)
+	}
+}
+
+func TestCheck_ProbeRefusesOtherRedirects(t *testing.T) {
+	tls := httptest.NewTLSServer(basicHandler("u", "p"))
+	defer tls.Close()
+	plain := httptest.NewServer(basicHandler("u", "p"))
+	defer plain.Close()
+	otherHost := strings.Replace(tls.URL, "127.0.0.1", "localhost", 1)
+	for name, target := range map[string]string{"other hostname": otherHost, "http target": plain.URL} {
+		redir := redirectTo(target)
+		if _, err := check(t, Endpoint{URL: redir.URL, SkipVerify: true}, "u", "p", nil); err == nil {
+			t.Errorf("%s: want error", name)
+		}
+		redir.Close()
+	}
+}
+
+func TestCheck_EmptyCredentialsAreSent(t *testing.T) {
+	mux := http.NewServeMux()
+	var srv *httptest.Server
+	mux.HandleFunc("/v2/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("WWW-Authenticate", `Bearer realm="`+srv.URL+`/token",service="s"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	})
+	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		if u, p, ok := r.BasicAuth(); ok && (u != "" || p != "") {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if _, _, ok := r.BasicAuth(); !ok {
+			w.Write([]byte(`{"token":"anon"}`)) // anonymous token
+			return
+		}
+		w.WriteHeader(http.StatusUnauthorized) // empty basic header is not valid
+	})
+	srv = httptest.NewServer(mux)
+	defer srv.Close()
+	if r, err := check(t, Endpoint{URL: srv.URL}, "", "", nil); err != nil || r.Status != Rejected {
+		t.Errorf("empty: %+v, %v", r, err)
+	}
+}

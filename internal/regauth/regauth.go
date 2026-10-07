@@ -39,9 +39,15 @@ const timeout = 10 * time.Second
 // not be checked (network, TLS, or an unexpected answer).
 func Check(ctx context.Context, ep Endpoint, username, password string, scopes []string) (Result, error) {
 	client := newClient(ep.SkipVerify)
-	resp, err := get(ctx, client, ep.URL+"/v2/", "", "")
+	probe := newClient(ep.SkipVerify)
+	probe.CheckRedirect = httpToHTTPS
+	resp, err := get(ctx, probe, ep.URL+"/v2/", nil)
 	if err != nil {
 		return Result{}, err
+	}
+	// The unauthenticated probe may have moved the registry to https.
+	if resp.Request != nil && resp.Request.URL != nil {
+		ep.URL = resp.Request.URL.Scheme + "://" + resp.Request.URL.Host
 	}
 	switch resp.StatusCode {
 	case http.StatusOK:
@@ -78,7 +84,7 @@ func Check(ctx context.Context, ep Endpoint, username, password string, scopes [
 		return Result{}, fmt.Errorf("unsupported login challenge %q", challenge)
 	}
 
-	resp, err = get(ctx, client, target, username, password)
+	resp, err = get(ctx, client, target, &[2]string{username, password})
 	if err != nil {
 		return Result{}, err
 	}
@@ -106,13 +112,25 @@ func newClient(skipVerify bool) *http.Client {
 	}
 }
 
-func get(ctx context.Context, client *http.Client, target, username, password string) (*http.Response, error) {
+// httpToHTTPS lets the unauthenticated probe follow exactly one redirect, from
+// http to https on the same hostname; anything else is returned as is.
+func httpToHTTPS(req *http.Request, via []*http.Request) error {
+	if len(via) == 1 && via[0].URL.Scheme == "http" && req.URL.Scheme == "https" &&
+		req.URL.Hostname() == via[0].URL.Hostname() {
+		return nil
+	}
+	return http.ErrUseLastResponse
+}
+
+// get sends a GET; basic is {username, password}, sent even when empty, or nil
+// for no credentials.
+func get(ctx context.Context, client *http.Client, target string, basic *[2]string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
 		return nil, err
 	}
-	if username != "" || password != "" {
-		req.SetBasicAuth(username, password)
+	if basic != nil {
+		req.SetBasicAuth(basic[0], basic[1])
 	}
 	resp, err := client.Do(req)
 	if err != nil {
