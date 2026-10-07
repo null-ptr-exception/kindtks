@@ -233,3 +233,23 @@ MOCK
   run grep -m1 -A2 'port:' "${KINDTKS_PROFILE_DIR}/gateway.yaml"
   assert_output --partial "number: 80"
 }
+
+@test "install_istio creates the TLS cert with kindtks tls-cert" {
+  export KINDTKS_ARGS_FILE="${BATS_TEST_TMPDIR}/kindtks_args"
+  cat > "${MOCK_BIN}/fake-kindtks" <<'MOCK'
+#!/usr/bin/env bash
+echo "$@" >> "$KINDTKS_ARGS_FILE"
+MOCK
+  chmod +x "${MOCK_BIN}/fake-kindtks"
+  export KINDTKS_BIN="${MOCK_BIN}/fake-kindtks"
+
+  run install_istio
+  assert_success
+  run grep '^tls-cert ' "$KINDTKS_ARGS_FILE"
+  assert_output --regexp '^tls-cert /.+ kindtks\.localhost \*\.kindtks\.localhost kindtks\.local \*\.kindtks\.local$'
+}
+
+@test "no profile calls openssl" {
+  run grep -rn 'openssl' "${BATS_TEST_DIRNAME}/../../profiles"
+  assert_failure
+}

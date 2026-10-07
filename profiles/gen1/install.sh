@@ -105,10 +105,7 @@ install_istio() {
   echo "==> Creating TLS certificate for *.kindtks.localhost / *.kindtks.local..."
   local certdir
   certdir=$(mktemp -d)
-  openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 \
-    -keyout "$certdir/tls.key" -out "$certdir/tls.crt" -nodes -days 3650 \
-    -subj "/CN=kindtks.localhost" \
-    -addext "subjectAltName=DNS:*.kindtks.localhost,DNS:kindtks.localhost,DNS:*.kindtks.local,DNS:kindtks.local" 2>/dev/null
+  "$KINDTKS_BIN" tls-cert "$certdir" kindtks.localhost '*.kindtks.localhost' kindtks.local '*.kindtks.local'
   kubectl -n istio-ingress create secret tls kindtks-tls \
     --cert="$certdir/tls.crt" --key="$certdir/tls.key"
   rm -rf "$certdir"
