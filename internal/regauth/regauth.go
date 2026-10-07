@@ -62,6 +62,9 @@ func Check(ctx context.Context, ep Endpoint, username, password string, scopes [
 		if err != nil || params["realm"] == "" {
 			return Result{}, fmt.Errorf("unusable login challenge %q", challenge)
 		}
+		if strings.HasPrefix(ep.URL, "https://") && strings.EqualFold(u.Scheme, "http") {
+			return Result{}, fmt.Errorf("refusing to send credentials to plain-HTTP token realm %s from an HTTPS registry", params["realm"])
+		}
 		q := u.Query()
 		if s := params["service"]; s != "" {
 			q.Set("service", s)
@@ -94,7 +97,13 @@ func newClient(skipVerify bool) *http.Client {
 		// Matches containerd's skip_verify for this host.
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
-	return &http.Client{Timeout: timeout, Transport: tr}
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: tr,
+		// Never follow redirects: Go would forward Authorization to a
+		// same-host redirect on another scheme or port.
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
 }
 
 func get(ctx context.Context, client *http.Client, target, username, password string) (*http.Response, error) {

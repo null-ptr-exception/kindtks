@@ -124,3 +124,69 @@ func TestParseChallenge_QuotedCommas(t *testing.T) {
 		t.Errorf("got %q %v", scheme, params)
 	}
 }
+
+// sink records whether it received any request, and whether it carried credentials.
+func sink(t *testing.T) (*httptest.Server, *[]string) {
+	t.Helper()
+	var got []string
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.Method+" "+r.URL.Path+" auth="+r.Header.Get("Authorization"))
+	}))
+	t.Cleanup(s.Close)
+	return s, &got
+}
+
+func TestCheck_NoRedirectWithCredentials(t *testing.T) {
+	target, got := sink(t)
+	reg := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, _, ok := r.BasicAuth(); ok {
+			http.Redirect(w, r, target.URL+"/steal", http.StatusFound)
+			return
+		}
+		w.Header().Set("WWW-Authenticate", `Basic realm="test"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer reg.Close()
+	if r, err := check(t, Endpoint{URL: reg.URL, SkipVerify: true}, "u", "p", nil); err == nil {
+		t.Errorf("basic redirect: want error, got %+v", r)
+	}
+	if len(*got) != 0 {
+		t.Errorf("redirect target received %v", *got)
+	}
+}
+
+func TestCheck_NoRedirectOnTokenRequest(t *testing.T) {
+	target, got := sink(t)
+	var srv *httptest.Server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v2/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("WWW-Authenticate", `Bearer realm="`+srv.URL+`/token",service="s"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	})
+	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL+"/steal", http.StatusFound)
+	})
+	srv = httptest.NewServer(mux)
+	defer srv.Close()
+	if r, err := check(t, Endpoint{URL: srv.URL}, "u", "p", nil); err == nil {
+		t.Errorf("token redirect: want error, got %+v", r)
+	}
+	if len(*got) != 0 {
+		t.Errorf("redirect target received %v", *got)
+	}
+}
+
+func TestCheck_RefusesPlainHTTPRealmFromHTTPS(t *testing.T) {
+	realm, got := sink(t)
+	reg := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("WWW-Authenticate", `Bearer realm="`+realm.URL+`/token",service="s"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer reg.Close()
+	if r, err := check(t, Endpoint{URL: reg.URL, SkipVerify: true}, "u", "p", nil); err == nil {
+		t.Errorf("want error, got %+v", r)
+	}
+	if len(*got) != 0 {
+		t.Errorf("plain-HTTP realm received %v", *got)
+	}
+}
