@@ -12,13 +12,18 @@
         "properties": {
           "hosts": {"type": "string"},
           "auth": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["username", "password"],
-            "properties": {
-              "username": {"type": "string"},
-              "password": {"type": "string"}
-            }
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["username", "password"],
+                "properties": {
+                  "username": {"type": "string"},
+                  "password": {"type": "string"}
+                }
+              },
+              {"const": "prompt"}
+            ]
           }
         }
       }

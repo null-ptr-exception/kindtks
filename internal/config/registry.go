@@ -1,10 +1,13 @@
 package config
 
 import (
+	"net/url"
 	"fmt"
 	"net"
 	"sort"
 	"strings"
+
+	"github.com/BurntSushi/toml"
 )
 
 var wellKnownRegistries = map[string]bool{
@@ -120,4 +123,114 @@ func (c *Config) AuthPatch() string {
 		fmt.Fprintf(&b, "  password = %q\n", auth.Password)
 	}
 	return b.String()
+}
+
+// PromptRegistries returns the sorted names of registries whose credentials
+// are still to be asked for.
+func (c *Config) PromptRegistries() []string {
+	var names []string
+	for name, r := range c.Registries {
+		if r != nil && r.Auth != nil && r.Auth.Prompt {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+// AuthEndpoint is where containerd connects for a registry host name, and so
+// where its credentials are checked.
+type AuthEndpoint struct {
+	URL        string // scheme://host[:port]
+	SkipVerify bool
+}
+
+// AuthEndpoint finds name in the host files kindtks writes (explicit or
+// auto-trust), as a server or a [host."…"] URL; otherwise docker.io maps to
+// Docker Hub's API host and anything else to https://name.
+func (c *Config) AuthEndpoint(name string) AuthEndpoint {
+	files := c.HostsFiles()
+	regs := make([]string, 0, len(files))
+	for reg := range files {
+		regs = append(regs, reg)
+	}
+	sort.Strings(regs)
+	for _, reg := range regs {
+		var doc struct {
+			Server     string `toml:"server"`
+			SkipVerify bool   `toml:"skip_verify"`
+			Host       map[string]struct {
+				SkipVerify bool `toml:"skip_verify"`
+			} `toml:"host"`
+		}
+		if _, err := toml.Decode(files[reg], &doc); err != nil {
+			continue
+		}
+		hosts := make([]string, 0, len(doc.Host))
+		for u := range doc.Host {
+			hosts = append(hosts, u)
+		}
+		sort.Strings(hosts)
+		for _, u := range hosts {
+			if ep, ok := endpointFor(u, name); ok {
+				ep.SkipVerify = doc.Host[u].SkipVerify
+				return ep
+			}
+		}
+		if ep, ok := endpointFor(doc.Server, name); ok {
+			ep.SkipVerify = doc.SkipVerify
+			return ep
+		}
+	}
+	if name == "docker.io" {
+		return AuthEndpoint{URL: "https://registry-1.docker.io"}
+	}
+	return AuthEndpoint{URL: "https://" + name}
+}
+
+func endpointFor(raw, name string) (AuthEndpoint, bool) {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host != name || (u.Scheme != "http" && u.Scheme != "https") {
+		return AuthEndpoint{}, false
+	}
+	return AuthEndpoint{URL: u.Scheme + "://" + u.Host}, true
+}
+
+// PullScopes returns the token scopes for pulling the profile's images from
+// registry name.
+func (c *Config) PullScopes(name string) []string {
+	seen := map[string]bool{}
+	var scopes []string
+	for _, image := range c.Images {
+		reg, repo := imageRepository(image)
+		scope := "repository:" + repo + ":pull"
+		if reg == name && !seen[scope] {
+			seen[scope] = true
+			scopes = append(scopes, scope)
+		}
+	}
+	sort.Strings(scopes)
+	return scopes
+}
+
+// imageRepository splits an image reference into the registry it is pulled
+// from (docker.io for Docker Hub, implicit or explicit) and its repository.
+func imageRepository(image string) (registry, repo string) {
+	ref := image
+	if at := strings.Index(ref, "@"); at >= 0 {
+		ref = ref[:at]
+	}
+	if colon := strings.LastIndex(ref, ":"); colon >= 0 && !strings.Contains(ref[colon+1:], "/") {
+		ref = ref[:colon]
+	}
+	registry, repo = RegistryFromImage(image), ref
+	if registry == "" {
+		registry = "docker.io"
+	} else {
+		repo = strings.TrimPrefix(ref, registry+"/")
+	}
+	if registry == "docker.io" && !strings.Contains(repo, "/") {
+		repo = "library/" + repo
+	}
+	return registry, repo
 }
