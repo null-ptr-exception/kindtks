@@ -38,7 +38,7 @@ All of this happens after the config is resolved and before the kind config is w
      - registry needs no login → print `<reg> does not require a login; credentials not checked` and keep the credentials.
 3. **`--skip-auth-check`** (flag on `create`) skips all checking; prompting still happens.
 
-Prompt output goes to stderr; input is read from `/dev/tty` so it works when stdin is redirected. Credentials live in memory and end up only in the kind config patch (existing behaviour) and so in each node's containerd config.
+Prompts are written to and read from `/dev/tty` (so they work when stdin or stdout is redirected); status lines (accepted, rejected, notes) go to stderr. Credentials live in memory and end up only in the kind config patch (existing behaviour) and so in each node's containerd config.
 
 ## Checking
 
