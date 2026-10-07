@@ -46,8 +46,22 @@ No wrapper script or alias is shipped. Scope is Linux with the default socket at
 
 ## Image
 
-- Base `alpine:3.20` (as today) plus `bash`, `docker-cli`, `gettext` (envsubst) from apk.
-- Pinned binaries downloaded at build time with SHA-256 checks: kind v0.33.0 (spike), kubectl v1.33.1 and helm v3.21.0 (the versions gen1's e2e passes with on the dev host).
+Every tool and base image is pinned to an exact version; downloads are checked against a SHA-256 written in the Dockerfile; versions live in `ARG`s at the top of the Dockerfile.
+
+| Item | Pin | Source |
+|---|---|---|
+| builder base | `golang:1.24.13@sha256:d2d2bc1c84f7e60d7d2438a3836ae7d0c847f4888464e7ec9ba3a1339a1ee804` | matches `go 1.24.13` in go.mod |
+| runtime and charts-stage base | `alpine:3.20.10@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc` | |
+| bash | apk `bash=5.2.26-r0` | alpine 3.20 |
+| envsubst | apk `gettext=0.22.5-r0` | alpine 3.20 |
+| docker CLI | 29.2.1 static, `995b1d0b51e96d551a3b49c552c0170bc6ce9f8b9e0866b8c15bbc67d1cf93a3` | download.docker.com; same version as the dev host daemon |
+| kind | v0.33.0, `aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d` | spike version |
+| kubectl | v1.33.1, `5de4e9f2266738fd112b721265a0c1cd7f4e5208b670f811861f699474a100a3` | version gen1 e2e passes with on the dev host |
+| helm | v3.21.0, `0093eb572e3d2380f094df162ddb525e219249de88957afe24cfbb19632acd36` | same; also used by the charts stage instead of apk `helm` |
+
+Alpine keeps only the latest revision of a package per branch, so a pinned apk version can disappear and break the build. That failure is the intended signal to bump the pin; it is not worked around.
+
+- Only linux/amd64 is built (as today); the checksums are for amd64.
 - Profiles at `/profiles`, charts at `/charts` (as today).
 - `ENV KINDTKS_PROFILES_DIR=/profiles KINDTKS_CHARTS_DIR=/charts KINDTKS_IMAGE=ghcr.io/null-ptr-exception/kindtks:<version>`. `KINDTKS_IMAGE` comes from the `VERSION` build arg and marks "running in the image".
 
