@@ -65,6 +65,26 @@ func TestCheckMounts_RootHome(t *testing.T) {
 	}
 }
 
+func TestCheckMounts_UnwritableDir(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root can write to any mode")
+	}
+	home := inImage(t)
+	kubeDir := filepath.Join(home, ".kube")
+	os.MkdirAll(kubeDir, 0755)
+	os.MkdirAll(stateDir(), 0755)
+	if err := os.Chmod(kubeDir, 0555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		os.Chmod(kubeDir, 0755)
+	})
+	err := checkMounts(okDocker)
+	if err == nil || !strings.Contains(err.Error(), kubeDir) {
+		t.Fatalf("want error mentioning %q, got %v", kubeDir, err)
+	}
+}
+
 func TestCheckConfigVisible(t *testing.T) {
 	inImage(t)
 	err := checkConfigVisible("/nonexistent/my.yaml")
