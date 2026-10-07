@@ -56,7 +56,7 @@ setup_file() {
 
   # Clean VM state
   ssh_vm 'export PATH="$HOME/.local/bin:$PATH"; kind delete cluster --name gen1 2>/dev/null; true'
-  ssh_vm 'rm -rf ~/.local/bin/kindtks ~/.local/share/kindtks ~/.local/state/kindtks/gen1'
+  ssh_vm 'sudo rm -rf ~/.local/bin/kindtks ~/.local/share/kindtks ~/.local/state/kindtks/gen1'
 }
 
 teardown_file() {
