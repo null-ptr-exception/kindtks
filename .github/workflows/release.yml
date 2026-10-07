@@ -48,6 +48,9 @@ jobs:
             type=semver,pattern={{version}}
             type=raw,value=latest
 
+      - id: buildid
+        run: echo "id=${GITHUB_REF_NAME}-${GITHUB_SHA::7}-$(date -u +%Y%m%dT%H%M%SZ)" >> "$GITHUB_OUTPUT"
+
       - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         id: push
         with:
@@ -55,7 +58,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: VERSION=${{ github.ref_name }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            BUILD_ID=${{ steps.buildid.outputs.id }}
 
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
         with:
@@ -68,7 +73,7 @@ jobs:
           IMAGE_REF: ${{ env.IMAGE }}:${{ github.ref_name }}
           DIGEST: ${{ steps.push.outputs.digest }}
         run: |
-          NOTES=$(printf '## Container Image\n\n```\ndocker pull %s\n```\n\nDigest: `%s`\n\n## Run\n\n```bash\ndocker run --rm %s\n```\n\nprints the README, including the full command to run kindtks.' "$IMAGE_REF" "$DIGEST" "$IMAGE_REF")
+          NOTES=$(printf '## Install\n\n```bash\ndocker run --rm %s install-script | bash\n```\n\nRequires Docker and bash. Add `| bash -s -- --yes` to accept all prompts.\n\n## Container Image\n\n```\ndocker pull %s\n```\n\nDigest: `%s`' "$IMAGE_REF" "$IMAGE_REF" "$DIGEST")
           gh release create "${{ github.ref_name }}" \
             --repo "${{ github.repository }}" \
             --generate-notes \
