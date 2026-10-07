@@ -1,38 +1,46 @@
 package cmd
 
 import (
-	"strings"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
-func TestProfileDir_FromEnv(t *testing.T) {
-	t.Setenv("KINDTKS_PROFILES_DIR", "/profiles")
-	dir, err := profileDir()
-	if err != nil || dir != "/profiles" {
-		t.Fatalf("got %q, %v", dir, err)
-	}
-}
-
-func TestProfileDir_Unset(t *testing.T) {
+func TestProfileDir(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
 	t.Setenv("KINDTKS_PROFILES_DIR", "")
-	_, err := profileDir()
-	if err == nil || !strings.Contains(err.Error(), "docker run --rm "+imageRef) {
-		t.Fatalf("want hint to run the image, got %v", err)
+	if got, want := profileDir(), filepath.Join(home, ".local", "share", "kindtks", "profiles"); got != want {
+		t.Errorf("default: got %q, want %q", got, want)
+	}
+	t.Setenv("KINDTKS_PROFILES_DIR", "/p")
+	if got := profileDir(); got != "/p" {
+		t.Errorf("override: got %q", got)
 	}
 }
 
-func TestReadme_SubstitutesImage(t *testing.T) {
-	old := projectReadme
-	t.Cleanup(func() { projectReadme = old })
-	projectReadme = "run: docker run --rm " + imageRef + " list\n"
-
-	t.Setenv("KINDTKS_IMAGE", "")
-	if got := readme(); got != projectReadme {
-		t.Errorf("outside image: got %q", got)
+func TestChartsDir(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("KINDTKS_CHARTS_DIR", "")
+	if got, want := chartsDir(), filepath.Join(home, ".local", "share", "kindtks", "charts"); got != want {
+		t.Errorf("default: got %q, want %q", got, want)
 	}
-	t.Setenv("KINDTKS_IMAGE", "ghcr.io/null-ptr-exception/kindtks:0.6.0")
-	if got := readme(); got != "run: docker run --rm ghcr.io/null-ptr-exception/kindtks:0.6.0 list\n" {
-		t.Errorf("inside image: got %q", got)
+	t.Setenv("KINDTKS_CHARTS_DIR", "/c")
+	if got := chartsDir(); got != "/c" {
+		t.Errorf("override: got %q", got)
+	}
+}
+
+func TestPrependToolsDir_Once(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("PATH", "/usr/bin:/bin")
+	prependToolsDir()
+	prependToolsDir()
+	want := filepath.Join(home, ".local", "share", "kindtks", "bin") + ":/usr/bin:/bin"
+	if got := os.Getenv("PATH"); got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 

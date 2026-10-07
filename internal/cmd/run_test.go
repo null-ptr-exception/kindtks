@@ -41,7 +41,7 @@ delete() { :; }
 	envData, _ := os.ReadFile(out + ".env")
 	env := string(envData)
 	exe, _ := os.Executable()
-	for _, want := range []string{"KINDTKS_BIN=" + exe, "IMAGE_CILIUM=quay.io/cilium/cilium:v1", "KINDTKS_KIND_CONFIG=/tmp/kind.yaml"} {
+	for _, want := range []string{"KINDTKS_BIN=" + exe, "KINDTKS_CHARTS_DIR=" + chartsDir(), "IMAGE_CILIUM=quay.io/cilium/cilium:v1", "KINDTKS_KIND_CONFIG=/tmp/kind.yaml"} {
 		if !strings.Contains(env, want+"\n") {
 			t.Errorf("env missing %q", want)
 		}

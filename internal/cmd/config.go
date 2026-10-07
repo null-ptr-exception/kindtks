@@ -19,10 +19,7 @@ var configCmd = &cobra.Command{
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
-		dir, err := profileDir()
-		if err != nil {
-			return err
-		}
+		dir := profileDir()
 
 		p, err := profile.Load(dir, name)
 		if err != nil {

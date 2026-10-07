@@ -15,11 +15,12 @@ var rootCmd = &cobra.Command{
 	Use:   "kindtks",
 	Short: "kindtks - an opinionated customization of kind kubernetes with many thanks",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Print(readme())
+		fmt.Print(projectReadme)
 	},
 }
 
 func Execute() {
+	prependToolsDir()
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

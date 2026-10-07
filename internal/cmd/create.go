@@ -20,17 +20,8 @@ var createCmd = &cobra.Command{
 	Args:         cobra.ExactArgs(1),
 	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := checkMounts(dockerReachable); err != nil {
-			return err
-		}
-		if err := checkConfigVisible(configFile); err != nil {
-			return err
-		}
 		name := args[0]
-		dir, err := profileDir()
-		if err != nil {
-			return err
-		}
+		dir := profileDir()
 
 		p, err := profile.Load(dir, name)
 		if err != nil {
