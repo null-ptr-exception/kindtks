@@ -39,8 +39,6 @@ func runProfileFunc(p *profile.Profile, funcName string, res *config.Resolved, k
 	}
 
 	env := append(os.Environ(),
-		"KINDTKS_DATA_DIR="+dataDir(),
-		"KINDTKS_CHARTS_DIR="+filepath.Join(dataDir(), "charts"),
 		"KINDTKS_PROFILE_NAME="+p.Name,
 		"KINDTKS_PROFILE_DIR="+p.Dir,
 		"KINDTKS_KIND_CONFIG="+kindCfgPath,

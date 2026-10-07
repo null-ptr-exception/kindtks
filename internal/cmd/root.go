@@ -15,15 +15,7 @@ var rootCmd = &cobra.Command{
 	Use:   "kindtks",
 	Short: "kindtks - an opinionated customization of kind kubernetes with many thanks",
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
-		if _, err := os.Stat("/.dockerenv"); err == nil {
-			fmt.Println()
-			fmt.Println("Install to your host:")
-			fmt.Println("  docker run --rm \\")
-			fmt.Println("    -v \"$HOME/.local/bin:/.local/bin\" \\")
-			fmt.Println("    -v \"$HOME/.local/share:/.local/share\" \\")
-			fmt.Println("    kindtks install")
-		}
+		fmt.Print(readme())
 	},
 }
 

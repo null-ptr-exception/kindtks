@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/rophy/kindtks/internal/profile"
 	"github.com/spf13/cobra"
@@ -13,7 +12,10 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List available profiles",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		profileDir := profileDir()
+		profileDir, err := profileDir()
+		if err != nil {
+			return err
+		}
 		if _, err := os.Stat(profileDir); os.IsNotExist(err) {
 			fmt.Println("No profiles found in", profileDir)
 			return nil
@@ -38,13 +40,18 @@ var listCmd = &cobra.Command{
 	},
 }
 
-func dataDir() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".local", "share", "kindtks")
-}
+// imageRef is the published image; the README's run command uses it and
+// readme() swaps in the running image's own reference.
+const imageRef = "ghcr.io/null-ptr-exception/kindtks:latest"
 
-func profileDir() string {
-	return filepath.Join(dataDir(), "profiles")
+// profileDir is the profiles directory, baked into the image and exported
+// as KINDTKS_PROFILES_DIR there.
+func profileDir() (string, error) {
+	dir := os.Getenv("KINDTKS_PROFILES_DIR")
+	if dir == "" {
+		return "", fmt.Errorf("KINDTKS_PROFILES_DIR is not set; kindtks runs from its image (see: docker run --rm %s)", imageRef)
+	}
+	return dir, nil
 }
 
 func joinOrNone(items []string) string {

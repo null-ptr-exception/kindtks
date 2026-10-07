@@ -18,7 +18,10 @@ var deleteCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
-		dir := profileDir()
+		dir, err := profileDir()
+		if err != nil {
+			return err
+		}
 
 		p, err := profile.Load(dir, name)
 		if err != nil {
