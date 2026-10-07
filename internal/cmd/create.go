@@ -15,10 +15,17 @@ import (
 var configFile string
 
 var createCmd = &cobra.Command{
-	Use:   "create <profile>",
-	Short: "Create cluster(s) from a profile",
-	Args:  cobra.ExactArgs(1),
+	Use:          "create <profile>",
+	Short:        "Create cluster(s) from a profile",
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := checkMounts(dockerReachable); err != nil {
+			return err
+		}
+		if err := checkConfigVisible(configFile); err != nil {
+			return err
+		}
 		name := args[0]
 		dir, err := profileDir()
 		if err != nil {

@@ -13,10 +13,14 @@ import (
 )
 
 var deleteCmd = &cobra.Command{
-	Use:   "delete <profile>",
-	Short: "Delete cluster(s) created by a profile",
-	Args:  cobra.ExactArgs(1),
+	Use:          "delete <profile>",
+	Short:        "Delete cluster(s) created by a profile",
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := checkMounts(dockerReachable); err != nil {
+			return err
+		}
 		name := args[0]
 		dir, err := profileDir()
 		if err != nil {
