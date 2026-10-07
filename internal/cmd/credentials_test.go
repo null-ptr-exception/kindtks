@@ -239,3 +239,12 @@ func TestCredentials_FileCredentials(t *testing.T) {
 		t.Errorf("accepted: %v", err)
 	}
 }
+
+func TestCredentials_InputClosed(t *testing.T) {
+	var calls []string
+	cfg := cfgWith(map[string]*config.RegistryAuth{"a.example.com": prompt()})
+	_, err := runFlow(cfg, &fakeTerm{answers: []string{"svc"}}, fakeCheck(&calls))
+	if err == nil || err.Error() != "input closed while asking for credentials for a.example.com" {
+		t.Fatalf("got %v", err)
+	}
+}

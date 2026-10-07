@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -78,7 +79,7 @@ func (f *credentialFlow) ask(name string, last *credentials) (*credentials, erro
 	if last != nil {
 		yes, err := f.confirm(fmt.Sprintf("  Use the same as %s (%s)? [Y/n] ", last.registry, last.username), true)
 		if err != nil {
-			return nil, err
+			return nil, inputErr(name, err)
 		}
 		if yes {
 			ok, err := f.verify(name, last.username, last.password)
@@ -93,11 +94,11 @@ func (f *credentialFlow) ask(name string, last *credentials) (*credentials, erro
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		user, err := f.term.ReadLine("  Username: ")
 		if err != nil {
-			return nil, err
+			return nil, inputErr(name, err)
 		}
 		pass, err := f.term.ReadPassword("  Password: ")
 		if err != nil {
-			return nil, err
+			return nil, inputErr(name, err)
 		}
 		if user == "" || pass == "" {
 			fmt.Fprintln(f.out, "  Username and password are required.")
@@ -125,7 +126,7 @@ func (f *credentialFlow) verify(name, user, pass string) (bool, error) {
 		fmt.Fprintf(f.out, "  Could not check the credentials: %v\n", err)
 		yes, cerr := f.confirm("  Continue without checking? [y/N] ", false)
 		if cerr != nil {
-			return false, cerr
+			return false, inputErr(name, cerr)
 		}
 		if !yes {
 			return false, fmt.Errorf("could not check the credentials for %s", name)
@@ -156,4 +157,12 @@ func (f *credentialFlow) confirm(prompt string, def bool) (bool, error) {
 		return false, nil
 	}
 	return def, nil
+}
+
+// inputErr names the registry being asked about when reading input fails.
+func inputErr(name string, err error) error {
+	if errors.Is(err, io.EOF) {
+		return fmt.Errorf("input closed while asking for credentials for %s", name)
+	}
+	return fmt.Errorf("reading credentials for %s: %w", name, err)
 }
