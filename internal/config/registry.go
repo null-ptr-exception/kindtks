@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"fmt"
 	"net"
+	"slices"
 	"sort"
 	"strings"
 
@@ -155,6 +156,10 @@ func (c *Config) AuthEndpoint(name string) AuthEndpoint {
 		regs = append(regs, reg)
 	}
 	sort.Strings(regs)
+	// The registry's own hosts file wins over other registries' mirror entries.
+	if _, ok := files[name]; ok {
+		regs = append([]string{name}, slices.DeleteFunc(regs, func(r string) bool { return r == name })...)
+	}
 	for _, reg := range regs {
 		var doc struct {
 			Server     string `toml:"server"`

@@ -93,3 +93,13 @@ func TestPullScopes(t *testing.T) {
 		t.Errorf("other: got %v", got)
 	}
 }
+
+func TestAuthEndpoint_OwnHostsFileFirst(t *testing.T) {
+	cfg := &Config{Registries: map[string]*Registry{
+		"a.example.com": {Hosts: "server = \"https://a.example.com\"\n\n[host.\"http://b.example.com\"]\n  skip_verify = true\n"},
+		"b.example.com": {Hosts: "server = \"https://b.example.com\"\n"},
+	}}
+	if got, want := cfg.AuthEndpoint("b.example.com"), (AuthEndpoint{URL: "https://b.example.com"}); got != want {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
