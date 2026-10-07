@@ -6,7 +6,7 @@ ARG ALPINE_IMAGE=alpine:3.20.10@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696
 ARG BASH_APK=bash=5.2.26-r0
 ARG GETTEXT_APK=gettext=0.22.5-r0
 
-FROM ${GO_IMAGE} AS builder
+FROM --platform=linux/amd64 ${GO_IMAGE} AS builder
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
@@ -14,7 +14,7 @@ COPY . .
 ARG VERSION=dev
 RUN CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=${VERSION}" -o /kindtks .
 
-FROM ${ALPINE_IMAGE} AS tools
+FROM --platform=linux/amd64 ${ALPINE_IMAGE} AS tools
 ARG KIND_VERSION=0.33.0
 ARG KIND_SHA256=aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
 ARG KUBECTL_VERSION=1.33.1
@@ -40,14 +40,14 @@ RUN mkdir /out \
  && tar xzf docker.tgz docker/docker \
  && install -m 0755 docker/docker /out/docker
 
-FROM ${ALPINE_IMAGE} AS charts
+FROM --platform=linux/amd64 ${ALPINE_IMAGE} AS charts
 ARG BASH_APK
 RUN apk add --no-cache "${BASH_APK}"
 COPY --from=tools /out/helm /usr/local/bin/helm
 COPY scripts/pull-charts.sh /pull-charts.sh
 RUN /pull-charts.sh /charts
 
-FROM ${ALPINE_IMAGE}
+FROM --platform=linux/amd64 ${ALPINE_IMAGE}
 ARG BASH_APK
 ARG GETTEXT_APK
 RUN apk add --no-cache "${BASH_APK}" "${GETTEXT_APK}"
