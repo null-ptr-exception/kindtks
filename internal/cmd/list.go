@@ -9,8 +9,9 @@ import (
 )
 
 var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List available profiles",
+	Use:          "list",
+	Short:        "List available profiles",
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		profileDir, err := profileDir()
 		if err != nil {

@@ -13,9 +13,10 @@ import (
 var showSchema bool
 
 var configCmd = &cobra.Command{
-	Use:   "config <profile>",
-	Short: "Show default configuration (or its JSON schema) for a profile",
-	Args:  cobra.ExactArgs(1),
+	Use:          "config <profile>",
+	Short:        "Show default configuration (or its JSON schema) for a profile",
+	Args:         cobra.ExactArgs(1),
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name := args[0]
 		dir, err := profileDir()

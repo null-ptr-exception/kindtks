@@ -25,9 +25,10 @@ func readme() string {
 }
 
 var helpCmd = &cobra.Command{
-	Use:   "help [profile]",
-	Short: "Show documentation for the project or a specific profile",
-	Args:  cobra.MaximumNArgs(1),
+	Use:          "help [profile]",
+	Short:        "Show documentation for the project or a specific profile",
+	Args:         cobra.MaximumNArgs(1),
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			fmt.Print(readme())
