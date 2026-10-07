@@ -39,7 +39,7 @@ Spike (2026-10-07): an image pushed to a local registry under another name, with
 
 Prompts read from `/dev/tty` (stdin is the script). With no terminal and no `--yes`, optional installs are skipped and the summary names `--yes`.
 
-Flags: `--yes` (answer yes to every prompt), `--no-tools` (skip step 3), `--dest DIR` (default `~/.local/bin`; e.g. `/usr/local/bin` with `sudo`).
+Flags: `--yes` (answer yes to every prompt), `--no-tools` (skip step 3), `--dest DIR` (default `~/.local/bin`).
 
 ## kindtks changes
 

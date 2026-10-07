@@ -17,7 +17,7 @@ The installer copies, out of the image:
 - `kindtks` to `~/.local/bin`;
 - the pinned `kind`, `kubectl` and `helm`, the profiles and the Helm charts to `~/.local/share/kindtks`. kindtks always runs profiles with these.
 
-It then checks `kind`, `kubectl` and `helm` on your `PATH` and offers to install the bundled version to `~/.local/bin` where one is missing or older. Nothing outside that directory is changed.
+It then checks `kind`, `kubectl` and `helm` on your `PATH` and offers to install the bundled version to `~/.local/bin` where one is missing or older. Tools are only ever installed into that directory; a file there that is a symlink is replaced, never written through.
 
 Options, passed as `| bash -s -- <options>`:
 
@@ -25,9 +25,11 @@ Options, passed as `| bash -s -- <options>`:
 |---|---|
 | `--yes` | answer yes to every prompt (prompts need a terminal; without one they are skipped) |
 | `--no-tools` | skip the `PATH` check; install only kindtks and its private copies |
-| `--dest DIR` | install to `DIR` instead of `~/.local/bin` |
+| `--dest DIR` | install kindtks, and any tools you accept, to `DIR` instead of `~/.local/bin` |
 
 Upgrade: run the same command with a newer image.
+
+Upgrading replaces `~/.local/share/kindtks` as a whole; keep your own profiles elsewhere and point `KINDTKS_PROFILES_DIR` at them.
 
 Air-gapped hosts: push the image to your registry and run the same command with that reference. The installer finds the pulled image by its build label, whatever its name.
 
