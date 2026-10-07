@@ -1,9 +1,9 @@
 package config
 
 import (
-	"net/url"
 	"fmt"
 	"net"
+	"net/url"
 	"slices"
 	"sort"
 	"strings"
@@ -12,16 +12,16 @@ import (
 )
 
 var wellKnownRegistries = map[string]bool{
-	"docker.io":       true,
-	"index.docker.io": true,
+	"docker.io":            true,
+	"index.docker.io":      true,
 	"registry-1.docker.io": true,
-	"quay.io":         true,
-	"ghcr.io":         true,
-	"gcr.io":          true,
-	"registry.k8s.io": true,
-	"k8s.gcr.io":      true,
-	"mcr.microsoft.com": true,
-	"public.ecr.aws":  true,
+	"quay.io":              true,
+	"ghcr.io":              true,
+	"gcr.io":               true,
+	"registry.k8s.io":      true,
+	"k8s.gcr.io":           true,
+	"mcr.microsoft.com":    true,
+	"public.ecr.aws":       true,
 }
 
 // RegistryFromImage extracts the registry host (with optional port) from an

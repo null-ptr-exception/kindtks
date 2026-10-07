@@ -3,7 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"golang.org/x/term"
 )
@@ -50,7 +52,22 @@ func (t *ttyTerminal) ReadLine(prompt string) (string, error) {
 
 func (t *ttyTerminal) ReadPassword(prompt string) (string, error) {
 	fmt.Fprint(t.f, prompt)
-	p, err := term.ReadPassword(int(t.f.Fd()))
+	fd := int(t.f.Fd())
+	// Ctrl-C would otherwise kill the process with echo still off.
+	if state, err := term.GetState(fd); err == nil {
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+		defer signal.Stop(sig)
+		go func() {
+			if _, ok := <-sig; ok {
+				term.Restore(fd, state)
+				fmt.Fprintln(t.f)
+				os.Exit(130)
+			}
+		}()
+	}
+	p, err := term.ReadPassword(fd)
 	fmt.Fprintln(t.f)
-	return strings.TrimSpace(string(p)), err
+	// Only the line ending is not part of the password.
+	return strings.TrimRight(string(p), "\r\n"), err
 }
