@@ -18,8 +18,9 @@ Minimum 6 GB RAM recommended (3 nodes). Istio resource requests are nulled out; 
 
 ```bash
 kindtks create gen1
-kubectl config use-context kind-gen1
 ```
+
+Creation takes several minutes and runs in the foreground; afterwards the kubectl context is `kind-gen1`.
 
 After creation, services are accessible at:
 
@@ -149,7 +150,7 @@ spec:
       storage: 1Mi
 EOF
 
-# Pod must land on a dc2 node for the PVC to bind
+# The scheduler places the pod on a dc2 node by itself; no nodeSelector needed
 kubectl run test-dc2 --image=busybox --restart=Never \
   --overrides='{"spec":{"volumes":[{"name":"v","persistentVolumeClaim":{"claimName":"test-dc2"}}],"containers":[{"name":"c","image":"busybox","command":["sleep","10"],"volumeMounts":[{"name":"v","mountPath":"/data"}]}]}}'
 kubectl get pvc test-dc2
@@ -183,7 +184,7 @@ Override images or options by passing `--config`:
 kindtks create gen1 --config my-config.yaml
 ```
 
-Private registries (anything not docker.io, quay.io, ghcr.io, etc.) are automatically trusted as insecure (HTTP) in the Kind nodes' containerd config.
+Private registries (anything not docker.io, quay.io, ghcr.io, etc.) are automatically trusted as insecure (HTTP) in the Kind nodes' containerd config. In an air-gapped environment, also point the example workload images below (`hashicorp/http-echo`, `busybox`) at your registry.
 
 ### Extra Gateway hosts
 
@@ -216,11 +217,7 @@ registries:
             password: mypass
 ```
 
-Credentials are injected into the Kind nodes' containerd config. A `hosts` entry (raw containerd `hosts.toml`) points a registry at a mirror or pull-through cache. The `kind-node` image is pulled by Docker on the host (not by containerd inside the cluster), so in an air-gapped environment, pre-pull it:
-
-```bash
-docker pull registry.internal:5000/kindest/node:v1.24.17
-```
+Credentials are injected into the Kind nodes' containerd config. A `hosts` entry (raw containerd `hosts.toml`) points a registry at a mirror or pull-through cache. The `kind-node` image is pulled by Docker on the host instead, so the host needs access to that registry itself (see the top-level README).
 
 ## Cluster Lifecycle
 

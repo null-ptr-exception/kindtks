@@ -18,7 +18,7 @@ Options, passed as `| bash -s -- <options>`:
 
 | Option | Effect |
 |---|---|
-| `--yes` | answer yes to every prompt (prompts need a terminal; without one they are skipped) |
+| `--yes` | answer yes to every prompt; also works without a terminal (without `--yes`, prompts are skipped there) |
 | `--no-tools` | install only kindtks and its private copies |
 | `--dest DIR` | install kindtks, and any tools you accept, to `DIR` instead of `~/.local/bin` |
 
@@ -97,7 +97,7 @@ kindtks config gen1 > my-config.yaml
 kindtks create gen1 --config my-config.yaml
 ```
 
-Example config for an air-gapped registry:
+Example config for an air-gapped registry (use whatever paths your mirror has):
 
 ```yaml
 profiles:
@@ -108,11 +108,13 @@ profiles:
             cilium-operator: registry.internal:5000/quay.io/cilium/operator-generic:v1.13.10
             istio-pilot: registry.internal:5000/docker.io/istio/pilot:1.16.7
             istio-proxy: registry.internal:5000/docker.io/istio/proxyv2:1.16.7
-            vault: registry.internal:5000/hashicorp/vault:2.0.3
+            vault: registry.internal:5000/docker.io/hashicorp/vault:2.0.3
             vault-secrets-operator: registry.internal:5000/ghcr.io/ricoberger/vault-secrets-operator:v1.26.0
 ```
 
 Private registries used by the profile's images are trusted as insecure (HTTP): kindtks writes a containerd `hosts.toml` for each one and mounts it into every Kind node. A registry counts as private unless it is one of docker.io (also index.docker.io, registry-1.docker.io), quay.io, ghcr.io, gcr.io, registry.k8s.io, k8s.gcr.io, mcr.microsoft.com, public.ecr.aws.
+
+Your own workloads' images need the same: point them at your registry (`registries` settings, including `auth`, apply to them too).
 
 The `kind-node` image is different: kind pulls it with the host's Docker, so `registries` settings do not apply to it. The host needs access to that registry itself (`docker login`, and `insecure-registries` in Docker's `daemon.json` for plain HTTP), or the image pulled beforehand.
 

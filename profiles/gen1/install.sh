@@ -55,7 +55,7 @@ create() {
 
   echo ""
   echo "==> gen1 cluster is ready!"
-  echo "    kubectl config use-context kind-$CLUSTER_NAME"
+  echo "    kubectl context: kind-$CLUSTER_NAME (already selected)"
   echo ""
   echo "    Vault UI: http://vault.kindtks.localhost:30080"
   echo "              https://vault.kindtks.localhost:30443 (self-signed)"
