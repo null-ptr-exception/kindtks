@@ -22,5 +22,24 @@ jobs:
       - name: Test
         run: go test ./... -v
 
-      - name: Docker build
-        run: docker build -t kindtks:ci .
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Docker build (linux/amd64, linux/arm64)
+        run: docker buildx build --platform linux/amd64,linux/arm64 -t kindtks:ci .
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test ./...
+
+      - name: Installer test (bash 3.2, BSD tools)
+        run: |
+          brew install bats-core
+          bats test/unit/installer.bats
