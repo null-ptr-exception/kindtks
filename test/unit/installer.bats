@@ -30,13 +30,13 @@ setup() {
 
   export FAKE_IMAGE_ROOT="${BATS_TEST_TMPDIR}/image"
   fake_tool "$FAKE_IMAGE_ROOT/usr/local/bin" kind v0.33.0
-  fake_tool "$FAKE_IMAGE_ROOT/usr/local/bin" kubectl v1.33.1
+  fake_tool "$FAKE_IMAGE_ROOT/usr/local/bin" kubectl v1.29.15
   fake_tool "$FAKE_IMAGE_ROOT/usr/local/bin" helm v3.21.0
   printf '#!/usr/bin/env bash\necho kindtks linux\n' > "$FAKE_IMAGE_ROOT/usr/local/bin/kindtks"
   chmod +x "$FAKE_IMAGE_ROOT/usr/local/bin/kindtks"
   DARWIN="$FAKE_IMAGE_ROOT/dist/darwin-arm64"
   fake_tool "$DARWIN" kind v0.33.0 darwin/arm64
-  fake_tool "$DARWIN" kubectl v1.33.1
+  fake_tool "$DARWIN" kubectl v1.29.15
   fake_tool "$DARWIN" helm v3.21.0
   printf '#!/usr/bin/env bash\necho kindtks darwin\n' > "$DARWIN/kindtks"
   chmod +x "$DARWIN/kindtks"
@@ -107,14 +107,14 @@ MOCK
 @test "missing tools are installed with --yes" {
   run bash "$INSTALLER" --yes
   assert_success
-  assert_output --partial "Install kubectl v1.33.1 to $DEST? [Y/n] yes (--yes)"
+  assert_output --partial "Install kubectl v1.29.15 to $DEST? [Y/n] yes (--yes)"
   for t in kind kubectl helm; do [ -x "$DEST/$t" ]; done
 }
 
 @test "missing tools are skipped without a terminal" {
   run bash "$INSTALLER"
   assert_success
-  assert_output --partial "Install kubectl v1.33.1 to $DEST? [Y/n] skipped: no terminal"
+  assert_output --partial "Install kubectl v1.29.15 to $DEST? [Y/n] skipped: no terminal"
   assert_output --partial "--yes"
   [ ! -e "$DEST/kubectl" ]
 }
@@ -129,17 +129,17 @@ MOCK
 }
 
 @test "older tool is offered when the destination comes first on PATH" {
-  fake_tool "$HOSTBIN" kubectl v1.29.3
+  fake_tool "$HOSTBIN" kubectl v1.28.0
   PATH="$MOCK_BIN:$DEST:$HOSTBIN:/usr/bin:/bin" run bash "$INSTALLER" --yes
   assert_success
-  assert_output --partial "kubectl v1.29.3 at $HOSTBIN/kubectl is older than bundled v1.33.1. Install v1.33.1 to $DEST ($DEST comes first on PATH)?"
+  assert_output --partial "kubectl v1.28.0 at $HOSTBIN/kubectl is older than bundled v1.29.15. Install v1.29.15 to $DEST ($DEST comes first on PATH)?"
   [ -x "$DEST/kubectl" ]
   run "$HOSTBIN/kubectl"
-  assert_output "Client Version: v1.29.3"
+  assert_output "Client Version: v1.28.0"
 }
 
 @test "older tool warns when the destination comes later on PATH" {
-  fake_tool "$HOSTBIN" kubectl v1.29.3
+  fake_tool "$HOSTBIN" kubectl v1.28.0
   PATH="$MOCK_BIN:$HOSTBIN:$DEST:/usr/bin:/bin" run bash "$INSTALLER" --yes
   assert_success
   assert_output --partial "($DEST comes after $HOSTBIN on PATH; the new copy will not take effect until PATH is changed)?"
@@ -149,7 +149,7 @@ MOCK
   fake_tool "$HOSTBIN" kubectl v1.34.0
   PATH="$MOCK_BIN:$HOSTBIN:/usr/bin:/bin" run bash "$INSTALLER" --yes
   assert_success
-  assert_output --partial "kubectl v1.34.0 found at $HOSTBIN/kubectl (bundled v1.33.1)"
+  assert_output --partial "kubectl v1.34.0 found at $HOSTBIN/kubectl (bundled v1.29.15)"
   [ ! -e "$DEST/kubectl" ]
 }
 

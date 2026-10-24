@@ -73,7 +73,7 @@ teardown_file() {
   run "$H/.local/share/kindtks/bin/kind" version
   assert_output --partial "v0.33.0"
   run "$H/.local/share/kindtks/bin/kubectl" version --client
-  assert_output --partial "v1.33.1"
+  assert_output --partial "v1.29.15"
   run "$H/.local/share/kindtks/bin/helm" version --short
   assert_output --partial "v3.21.0"
 }

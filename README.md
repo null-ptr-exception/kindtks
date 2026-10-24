@@ -24,7 +24,7 @@ Options, passed as `| bash -s -- <options>`:
 
 Air-gapped hosts: push the image to your registry and run the same command with that reference. The installer finds the pulled image by its build label, whatever its name.
 
-Bundled versions (Linux amd64, macOS arm64): kind v0.33.0, kubectl v1.33.1, helm v3.21.0. kubectl 1.33 is outside Kubernetes' version-skew policy for gen1's Kubernetes 1.24; this combination is tested with gen1.
+Bundled versions (Linux amd64, macOS arm64): kind v0.33.0, kubectl v1.29.15, helm v3.21.0. kubectl 1.29 is outside Kubernetes' version-skew policy for gen1's Kubernetes 1.24; this combination is tested with gen1. kubectl 1.30 and later run `kubectl exec` over WebSockets, and gen1's containerd leaks memory on each such `exec`. If you keep a newer kubectl, set `export KUBECTL_REMOTE_COMMAND_WEBSOCKETS=false`.
 
 ### macOS
 
