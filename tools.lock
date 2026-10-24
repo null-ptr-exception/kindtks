@@ -1,0 +1,11 @@
+# Bundled tools. Columns: platform tool sha256 url
+# Bump a version by changing the url and its sha256 together.
+linux-amd64  kind    aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-amd64
+linux-amd64  kubectl 5de4e9f2266738fd112b721265a0c1cd7f4e5208b670f811861f699474a100a3 https://dl.k8s.io/release/v1.33.1/bin/linux/amd64/kubectl
+linux-amd64  helm    0093eb572e3d2380f094df162ddb525e219249de88957afe24cfbb19632acd36 https://get.helm.sh/helm-v3.21.0-linux-amd64.tar.gz
+linux-arm64  kind    20022bee6cfcd5086cb7234d218e3454e6090022f2a8f55d1fa7fcf42c3867a2 https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-arm64
+linux-arm64  kubectl d595d1a26b7444e0beb122e25750ee4524e74414bbde070b672b423139295ce6 https://dl.k8s.io/release/v1.33.1/bin/linux/arm64/kubectl
+linux-arm64  helm    8de5a0c9a47431e59fd560e91e0779c8cf9316c383da7efb84128a4c339ecb2d https://get.helm.sh/helm-v3.21.0-linux-arm64.tar.gz
+darwin-arm64 kind    0c8c7dbe5e23594a198b786c4bc13dacc101fa6196b0cb0b23a1ca44e61f4b4f https://kind.sigs.k8s.io/dl/v0.33.0/kind-darwin-arm64
+darwin-arm64 kubectl 8ae6823839993bb2e394c3cf1919748e530642c625dc9100159595301f53bdeb https://dl.k8s.io/release/v1.33.1/bin/darwin/arm64/kubectl
+darwin-arm64 helm    68bfbdc022c543a2a022597b20298216877e98abe6e4a345d3ecf114d79cae5f https://get.helm.sh/helm-v3.21.0-darwin-arm64.tar.gz
