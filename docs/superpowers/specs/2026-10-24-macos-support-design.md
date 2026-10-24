@@ -17,7 +17,7 @@ MacBook Air M1, macOS 15.7.9, Colima 0.10.3 (4 CPU / 4 GiB), docker CLI 29.9.2:
 - `kindtks create gen1`: all 18 pods Running; the 3 nodes use about 2.2 GiB; `curl` to `vault.kindtks.localhost` on 30080 and 30443 → 200.
 - `create` with a `registries` config: the generated `hosts.toml` (under `~/.local/state/kindtks`) is mounted in all 3 nodes, through Colima's home mount.
 - `/bin/bash` 3.2.57, BSD `sort -V` and `grep -o 'v[0-9]\+…'` give the results the installer needs.
-- `*.kindtks.localhost` does not resolve in the macOS system resolver (`ping`: unknown host). curl and browsers resolve `.localhost` themselves.
+- `*.kindtks.localhost` does not resolve in the macOS system resolver. See Name resolution.
 
 Not exercised: the installer end to end, prompted registry credentials on the Mac terminal.
 
@@ -43,6 +43,27 @@ Not exercised: the installer end to end, prompted registry credentials on the Ma
 
 No code change expected. `create` output on macOS is unchanged; the README notes the resolver behaviour.
 
+## Name resolution
+
+Results of the spike:
+
+| Name | macOS system resolver (Python `getaddrinfo`) | macOS curl 8.7.1 | Linux (glibc + systemd-resolved) |
+|---|---|---|---|
+| `localhost` | `::1` | works | works |
+| `foo.localhost` | not found (`Errno 8`) | — | — |
+| `vault.kindtks.localhost` | not found (`Errno 8`) | connects to `::1` | `::1` |
+
+systemd-resolved maps every `*.localhost` name to loopback. macOS maps only `localhost` (through `/etc/hosts`).
+
+On macOS:
+
+- Works: browsers and curl (they resolve `.localhost` themselves); kubectl and helm (they do not use these names).
+- Fails with "unknown host": programs that use the system resolver, for example Python, Go and Java clients, `ping`, `nc`, `ssh`.
+- User fixes, documented in the README:
+  1. One `/etc/hosts` line per name, for example `127.0.0.1 vault.kindtks.localhost`. Needs sudo; no wildcards.
+  2. For the wildcard: dnsmasq from brew answering `*.localhost` with `127.0.0.1`, and a `/etc/resolver/localhost` file pointing to it. Needs sudo.
+- kindtks does not edit `/etc/hosts` or `/etc/resolver`: both need sudo.
+
 ## CI and release
 
 - `ci.yml`: add a `macos-latest` job: `go test ./...`, `bats test/unit/installer.bats` (bats-core from brew). The existing Linux job builds the image for both platforms (no push).
@@ -55,7 +76,7 @@ README Install section:
 
 - Requirements: Linux or WSL2 with Docker, or macOS on Apple Silicon with Colima.
 - macOS setup: `brew install colima docker`, `colima start --cpu 4 --memory 4` (gen1 needs about 2.2 GiB; Colima's default of 2 GiB is too small).
-- `*.kindtks.localhost` on macOS works in browsers and curl; other tools need an `/etc/hosts` entry.
+- `*.kindtks.localhost` on macOS: works in browsers and curl; for other programs, the two fixes in Name resolution.
 
 ## Out of scope
 
