@@ -140,6 +140,14 @@ MOCK
   assert_output --partial "tag: v1.26.0"
 }
 
+@test "vault-secrets-operator does not renew the non-renewable dev root token" {
+  # Renewal of the root token fails; after 10 failures the operator's healthz
+  # fails and the kubelet restarts it, every few minutes, forever.
+  run grep -A1 -- "- name: VAULT_RENEW_TOKEN" "${KINDTKS_PROFILE_DIR}/values-vault-secrets-operator.yaml"
+  assert_success
+  assert_output --partial 'value: "false"'
+}
+
 # --- envsubst with corporate registry ---
 
 @test "envsubst with corporate registry overrides all image repos" {
