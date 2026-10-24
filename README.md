@@ -6,7 +6,7 @@ Bootstraps fully configured clusters from pre-defined profiles.
 
 ## Install
 
-Requires Docker and bash (Linux or WSL2).
+Requires Docker and bash: Linux or WSL2, or macOS on Apple Silicon with Colima (see [macOS](#macos)).
 
 ```bash
 docker run --rm ghcr.io/null-ptr-exception/kindtks:latest install-script | bash
@@ -24,7 +24,26 @@ Options, passed as `| bash -s -- <options>`:
 
 Air-gapped hosts: push the image to your registry and run the same command with that reference. The installer finds the pulled image by its build label, whatever its name.
 
-Bundled versions: kind v0.33.0, kubectl v1.33.1, helm v3.21.0. kubectl 1.33 is outside Kubernetes' version-skew policy for gen1's Kubernetes 1.24; this combination is tested with gen1.
+Bundled versions (Linux amd64/arm64, macOS arm64): kind v0.33.0, kubectl v1.33.1, helm v3.21.0. kubectl 1.33 is outside Kubernetes' version-skew policy for gen1's Kubernetes 1.24; this combination is tested with gen1.
+
+### macOS
+
+Apple Silicon only, with [Colima](https://github.com/abiosoft/colima) as the Docker runtime:
+
+```bash
+brew install colima docker
+colima start --cpu 4 --memory 4   # gen1 uses about 2.2 GiB; Colima's default 2 GiB is too small
+```
+
+Then run the installer above. With zsh, put the PATH line it prints in `~/.zprofile`.
+
+`*.kindtks.localhost` names resolve in browsers and curl only; other programs (for example Python, Go and Java clients, `ping`, `ssh`) report an unknown host, because macOS resolves only `localhost` itself. Add one `/etc/hosts` line per name you need:
+
+```bash
+echo '127.0.0.1 vault.kindtks.localhost' | sudo tee -a /etc/hosts
+```
+
+For all names at once, run dnsmasq (from brew) answering `*.localhost` with `127.0.0.1`, and point `/etc/resolver/localhost` at it.
 
 ### Upgrading
 
