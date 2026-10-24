@@ -194,5 +194,5 @@ The mirror must be reachable from the Kind nodes (e.g. a container on the `kind`
 
 `VERSION` holds the version; `kindtks --version` prints it. On `main` it is the next version with `-dev` (e.g. `0.8.0-dev`), which never releases.
 
-1. Commit `VERSION` set to the release (`0.7.0`, or `0.7.0-rc1` for a pre-release) and push it to `main`. The Release workflow tests, publishes the image (`latest` too, except for `-rcN`), then creates the tag and the GitHub release. A version that already has a tag is skipped.
+1. Commit `VERSION` set to the release (`0.7.0`, or `0.7.0-rc1` for a pre-release) together with its notes in `CHANGELOG/0.7.0.md` (pre-releases use the notes of their final version), and push it to `main`. The Release workflow tests, publishes the image (`latest` too, except for `-rcN`), then creates the tag and the GitHub release with those notes. A version that already has a tag is skipped; a release without notes fails before anything is built.
 2. Commit `VERSION` set to the next `-dev` version (`0.8.0-dev`).
