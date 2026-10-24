@@ -24,7 +24,7 @@ Options, passed as `| bash -s -- <options>`:
 
 Air-gapped hosts: push the image to your registry and run the same command with that reference. The installer finds the pulled image by its build label, whatever its name.
 
-Bundled versions (Linux amd64/arm64, macOS arm64): kind v0.33.0, kubectl v1.33.1, helm v3.21.0. kubectl 1.33 is outside Kubernetes' version-skew policy for gen1's Kubernetes 1.24; this combination is tested with gen1.
+Bundled versions (Linux amd64, macOS arm64): kind v0.33.0, kubectl v1.33.1, helm v3.21.0. kubectl 1.33 is outside Kubernetes' version-skew policy for gen1's Kubernetes 1.24; this combination is tested with gen1.
 
 ### macOS
 
@@ -43,7 +43,7 @@ Then run the installer above. With zsh, put the PATH line it prints in `~/.zprof
 echo '127.0.0.1 vault.kindtks.localhost' | sudo tee -a /etc/hosts
 ```
 
-For all names at once, run dnsmasq (from brew) answering `*.localhost` with `127.0.0.1`, and point `/etc/resolver/localhost` at it.
+For all names at once (not tested with kindtks), run dnsmasq (from brew) answering `*.localhost` with `127.0.0.1`, and point `/etc/resolver/localhost` at it.
 
 ### Upgrading
 

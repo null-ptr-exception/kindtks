@@ -101,7 +101,7 @@ main() {
   case "$(uname -s)/$(uname -m)" in
     Linux/*) SRC=/usr/local/bin ;;
     Darwin/arm64) SRC=/dist/darwin-arm64 ;;
-    Darwin/*) die "Intel Macs are not supported" ;;
+    Darwin/*) die "Intel Macs are not supported (on Apple Silicon, run the installer outside Rosetta)" ;;
     *) die "unsupported system: $(uname -s) $(uname -m)" ;;
   esac
 
