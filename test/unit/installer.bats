@@ -4,10 +4,10 @@
 
 load '../helpers/test_helper'
 
-fake_tool() { # fake_tool DIR NAME VERSION
+fake_tool() { # fake_tool DIR NAME VERSION [PLATFORM]
   local out
   case "$2" in
-    kind) out="kind $3 go1.26.7 linux/amd64" ;;
+    kind) out="kind $3 go1.26.7 ${4:-linux/amd64}" ;;
     kubectl) out="Client Version: $3" ;;
     helm) out="$3+gabcdef0" ;;
   esac
@@ -32,8 +32,14 @@ setup() {
   fake_tool "$FAKE_IMAGE_ROOT/usr/local/bin" kind v0.33.0
   fake_tool "$FAKE_IMAGE_ROOT/usr/local/bin" kubectl v1.33.1
   fake_tool "$FAKE_IMAGE_ROOT/usr/local/bin" helm v3.21.0
-  printf '#!/usr/bin/env bash\necho kindtks\n' > "$FAKE_IMAGE_ROOT/usr/local/bin/kindtks"
+  printf '#!/usr/bin/env bash\necho kindtks linux\n' > "$FAKE_IMAGE_ROOT/usr/local/bin/kindtks"
   chmod +x "$FAKE_IMAGE_ROOT/usr/local/bin/kindtks"
+  DARWIN="$FAKE_IMAGE_ROOT/dist/darwin-arm64"
+  fake_tool "$DARWIN" kind v0.33.0 darwin/arm64
+  fake_tool "$DARWIN" kubectl v1.33.1
+  fake_tool "$DARWIN" helm v3.21.0
+  printf '#!/usr/bin/env bash\necho kindtks darwin\n' > "$DARWIN/kindtks"
+  chmod +x "$DARWIN/kindtks"
   mkdir -p "$FAKE_IMAGE_ROOT/profiles/gen1" "$FAKE_IMAGE_ROOT/charts"
   echo 'REQUIRES=""' > "$FAKE_IMAGE_ROOT/profiles/gen1/install.sh"
   touch "$FAKE_IMAGE_ROOT/charts/c-1.0.0.tgz"
@@ -57,6 +63,16 @@ esac
 MOCK
   chmod +x "$MOCK_BIN/docker"
 
+  cat > "$MOCK_BIN/uname" <<'MOCK'
+#!/usr/bin/env bash
+case "$1" in
+  -s) echo "${FAKE_UNAME_S:-Linux}" ;;
+  -m) echo "${FAKE_UNAME_M:-x86_64}" ;;
+  *) /usr/bin/uname "$@" ;;
+esac
+MOCK
+  chmod +x "$MOCK_BIN/uname"
+
   HOSTBIN="${BATS_TEST_TMPDIR}/hostbin"
   mkdir -p "$HOSTBIN"
   export PATH="$MOCK_BIN:/usr/bin:/bin"
@@ -69,6 +85,8 @@ MOCK
 @test "installs kindtks and the private copies" {
   run bash "$INSTALLER" --no-tools
   assert_success
+  run "$DEST/kindtks"
+  assert_output "kindtks linux"
   [ -x "$DEST/kindtks" ]
   for t in kind kubectl helm; do [ -x "$DATA/bin/$t" ]; done
   [ -f "$DATA/profiles/gen1/install.sh" ]
@@ -76,6 +94,7 @@ MOCK
   run cat "$DOCKER_LOG"
   assert_output --partial "images -q --filter label=io.kindtks.build=test-build-1"
   assert_output --partial "rm fakecid"
+  assert_output --partial "cp fakecid:/usr/local/bin/kindtks"
 }
 
 @test "upgrade replaces the private directories whole" {
@@ -181,8 +200,32 @@ MOCK
 }
 
 @test "a truncated installer runs nothing" {
-  head -n -1 "$INSTALLER" > "${BATS_TEST_TMPDIR}/truncated.sh"
+  sed '$d' "$INSTALLER" > "${BATS_TEST_TMPDIR}/truncated.sh"
   run bash "${BATS_TEST_TMPDIR}/truncated.sh" --yes
   assert_success
   [ ! -e "$HOME/.local" ]
+}
+
+@test "macOS on Apple Silicon gets the darwin binaries" {
+  FAKE_UNAME_S=Darwin FAKE_UNAME_M=arm64 run bash "$INSTALLER" --yes
+  assert_success
+  run "$DEST/kindtks"
+  assert_output "kindtks darwin"
+  run "$DATA/bin/kind"
+  assert_output --partial "darwin/arm64"
+  run "$DEST/kind"
+  assert_output --partial "darwin/arm64"
+}
+
+@test "Intel Mac is refused before anything is installed" {
+  FAKE_UNAME_S=Darwin FAKE_UNAME_M=x86_64 run bash "$INSTALLER" --yes
+  assert_failure 1
+  assert_output --partial "error: Intel Macs are not supported"
+  [ ! -e "$HOME/.local" ]
+}
+
+@test "other systems are refused" {
+  FAKE_UNAME_S=FreeBSD FAKE_UNAME_M=amd64 run bash "$INSTALLER" --yes
+  assert_failure 1
+  assert_output --partial "error: unsupported system: FreeBSD amd64"
 }

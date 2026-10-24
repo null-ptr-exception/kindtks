@@ -2,8 +2,9 @@
 # kindtks installer for one image build. Printed by
 #   docker run --rm <kindtks image> install-script | bash -s -- [--yes] [--no-tools] [--dest DIR]
 # It finds the image on this host by its build label, copies kindtks and the
-# bundled kind, kubectl and helm out of it, and offers the bundled tools
-# where the host lacks them or has older ones.
+# bundled kind, kubectl and helm for this host (Linux, or macOS on Apple
+# Silicon) out of it, and offers the bundled tools where the host lacks them
+# or has older ones.
 set -euo pipefail
 
 BUILD_ID="__KINDTKS_BUILD_ID__"
@@ -95,6 +96,15 @@ main() {
   done
   DEST="${DEST%/}"
 
+  # 0. The binaries for this host. Linux hosts run the image's own
+  # architecture, so its /usr/local/bin fits.
+  case "$(uname -s)/$(uname -m)" in
+    Linux/*) SRC=/usr/local/bin ;;
+    Darwin/arm64) SRC=/dist/darwin-arm64 ;;
+    Darwin/*) die "Intel Macs are not supported" ;;
+    *) die "unsupported system: $(uname -s) $(uname -m)" ;;
+  esac
+
   # 1. Docker must work for this user.
   if ! err=$(docker info 2>&1 >/dev/null </dev/null); then
     die "docker is not usable as $(id -un): $err"
@@ -115,7 +125,7 @@ main() {
   rm -rf "$DATA_DIR/bin.new" "$DATA_DIR/profiles.new" "$DATA_DIR/charts.new"
   mkdir "$DATA_DIR/bin.new"
   for tool in kind kubectl helm; do
-    copy_out "/usr/local/bin/$tool" "$DATA_DIR/bin.new/$tool"
+    copy_out "$SRC/$tool" "$DATA_DIR/bin.new/$tool"
   done
   copy_out /profiles "$DATA_DIR/profiles.new"
   copy_out /charts "$DATA_DIR/charts.new"
@@ -127,7 +137,7 @@ main() {
   # replaced instead of its target being overwritten.
   tmp="$DEST/.kindtks-install.kindtks.$$"
   tmp_files+=("$tmp")
-  copy_out /usr/local/bin/kindtks "$tmp"
+  copy_out "$SRC/kindtks" "$tmp"
   mv -f "$tmp" "$DEST/kindtks"
 
   installed=("kindtks -> $DEST/kindtks")
