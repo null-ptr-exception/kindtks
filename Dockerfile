@@ -14,15 +14,13 @@ RUN go mod download
 COPY . .
 
 FROM gosrc AS kindtks-linux
-ARG VERSION=dev
 ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} \
-    go build -ldflags "-s -w -X main.version=${VERSION}" -o /kindtks .
+    go build -ldflags "-s -w" -o /kindtks .
 
 FROM gosrc AS kindtks-darwin
-ARG VERSION=dev
 RUN CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 \
-    go build -ldflags "-s -w -X main.version=${VERSION}" -o /kindtks .
+    go build -ldflags "-s -w" -o /kindtks .
 
 FROM --platform=$BUILDPLATFORM ${ALPINE_IMAGE} AS tools
 COPY tools.lock scripts/fetch-tools.sh /dl/

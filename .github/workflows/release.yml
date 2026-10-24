@@ -1,14 +1,51 @@
 name: Release
 
+# Releases are commits that change VERSION: a push to main whose VERSION is
+# not -dev and has no tag yet builds and publishes it, then creates the tag.
 on:
   push:
-    tags: ["*"]
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 env:
   IMAGE: ghcr.io/null-ptr-exception/kindtks
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.info.outputs.version }}
+      prerelease: ${{ steps.info.outputs.prerelease }}
+      publish: ${{ steps.tag.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - id: info
+        run: scripts/release-info.sh VERSION >> "$GITHUB_OUTPUT"
+
+      - id: tag
+        env:
+          VERSION: ${{ steps.info.outputs.version }}
+          RELEASE: ${{ steps.info.outputs.release }}
+        run: |
+          if [ "$RELEASE" != true ]; then
+            echo "$VERSION is a development version; nothing to release"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null; then
+            echo "$VERSION is already released"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
   test:
+    needs: [check]
+    if: needs.check.outputs.publish == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -22,13 +59,17 @@ jobs:
       - run: go test -v ./...
 
   publish:
-    needs: [test]
+    needs: [check, test]
+    if: needs.check.outputs.publish == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
       id-token: write
       attestations: write
+    env:
+      VERSION: ${{ needs.check.outputs.version }}
+      PRERELEASE: ${{ needs.check.outputs.prerelease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -40,16 +81,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Pre-releases (-rcN) do not move "latest".
       - uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         id: meta
         with:
           images: ${{ env.IMAGE }}
           tags: |
-            type=semver,pattern={{version}}
-            type=raw,value=latest
+            type=raw,value=${{ env.VERSION }}
+            type=raw,value=latest,enable=${{ env.PRERELEASE != 'true' }}
 
       - id: buildid
-        run: echo "id=${GITHUB_REF_NAME}-${GITHUB_SHA::7}-$(date -u +%Y%m%dT%H%M%SZ)" >> "$GITHUB_OUTPUT"
+        run: echo "id=${VERSION}-${GITHUB_SHA::7}-$(date -u +%Y%m%dT%H%M%SZ)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
@@ -62,7 +104,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VERSION=${{ github.ref_name }}
             BUILD_ID=${{ steps.buildid.outputs.id }}
 
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
@@ -71,13 +112,20 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
+      # Last step: the tag exists only when the image is published, so a
+      # failed run can be re-run.
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          IMAGE_REF: ${{ env.IMAGE }}:${{ github.ref_name }}
+          IMAGE_REF: ${{ env.IMAGE }}:${{ env.VERSION }}
           DIGEST: ${{ steps.push.outputs.digest }}
         run: |
           NOTES=$(printf '## Install\n\n```bash\ndocker run --rm %s install-script | bash\n```\n\nRequires Docker and bash: Linux, WSL2, or macOS on Apple Silicon with Colima. Add `| bash -s -- --yes` to accept all prompts.\n\n## Container Image\n\n```\ndocker pull %s\n```\n\nDigest: `%s`' "$IMAGE_REF" "$IMAGE_REF" "$DIGEST")
-          gh release create "${{ github.ref_name }}" \
+          flags=()
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          gh release create "$VERSION" \
             --repo "${{ github.repository }}" \
+            --target "$GITHUB_SHA" \
+            --title "$VERSION" \
             --generate-notes \
-            --notes "$NOTES"
+            --notes "$NOTES" \
+            "${flags[@]}"
