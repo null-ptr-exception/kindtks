@@ -48,9 +48,19 @@ teardown_file() {
   for f in "$H/.local/bin/kindtks" "$H/.local/share/kindtks/bin/kind" \
     "$H/.local/share/kindtks/bin/kubectl" "$H/.local/share/kindtks/bin/helm"; do
     [ -x "$f" ]
-    [ "$(stat -c %u "$f")" = "$(id -u)" ]
+    [ -O "$f" ]
   done
-  [ "$(stat -c %u "$H/.local/share/kindtks/profiles/gen1/install.sh")" = "$(id -u)" ]
+  [ -O "$H/.local/share/kindtks/profiles/gen1/install.sh" ]
+}
+
+@test "installed binaries are built for this host" {
+  local os
+  os=$(uname -s | tr '[:upper:]' '[:lower:]')
+  run "$H/.local/share/kindtks/bin/kind" version
+  assert_success
+  assert_output --partial " $os/"
+  run "$H/.local/bin/kindtks" --version
+  assert_success
 }
 
 @test "installed kindtks lists gen1 from the installed profiles" {
