@@ -50,7 +50,7 @@ Full example deploying an echo server with Istio ingress:
 ```bash
 kubectl create namespace echo
 
-kubectl -n echo create deployment echo --image=hashicorp/http-echo -- -text="hello"
+kubectl -n echo create deployment echo --image=hashicorp/http-echo -- /http-echo -text="hello"
 kubectl -n echo expose deployment echo --port=80 --target-port=5678
 
 kubectl apply -f - <<EOF
