@@ -1,0 +1,8 @@
+images:
+  kind-node: kindest/node:v1.24.17
+  istio-pilot: docker.io/istio/pilot:1.16.7
+  istio-proxy: docker.io/istio/proxyv2:1.16.7
+  vault: docker.io/hashicorp/vault:2.0.3
+  vault-secrets-operator: ghcr.io/ricoberger/vault-secrets-operator:v1.26.0
+gateway:
+  extraHosts: []

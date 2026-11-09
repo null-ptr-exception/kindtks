@@ -2,6 +2,10 @@ REQUIRES="kind helm kubectl"
 
 CLUSTER_NAME="gen1"
 
+# Directory of the values and manifest files. gen1-rootless sources this
+# script and points it here.
+GEN1_DIR="${GEN1_DIR:-$KINDTKS_PROFILE_DIR}"
+
 # Split IMAGE_* env vars into *_REPO and *_TAG for helm values
 split_image_refs() {
   local vars
@@ -21,7 +25,7 @@ split_image_refs() {
 helm_install() {
   local name="$1" chart="$2" namespace="$3"
   shift 3
-  local values_file="$KINDTKS_PROFILE_DIR/values-${name}.yaml"
+  local values_file="$GEN1_DIR/values-${name}.yaml"
   local args=()
   if [ -f "$values_file" ]; then
     local tmp
@@ -54,7 +58,7 @@ create() {
   install_vault_secrets_operator
 
   echo ""
-  echo "==> gen1 cluster is ready!"
+  echo "==> $CLUSTER_NAME cluster is ready!"
   echo "    kubectl context: kind-$CLUSTER_NAME (already selected)"
   echo ""
   echo "    Vault UI: http://vault.kindtks.localhost:30080"
@@ -78,7 +82,7 @@ delete() {
 
 install_storageclasses() {
   echo "==> Creating per-DC StorageClasses (netapp-dc1, netapp-dc2, netapp-dc3)..."
-  kubectl apply -f "$KINDTKS_PROFILE_DIR/storageclasses.yaml"
+  kubectl apply -f "$GEN1_DIR/storageclasses.yaml"
 }
 
 install_cilium() {
@@ -111,7 +115,7 @@ install_istio() {
   rm -rf "$certdir"
 
   echo "==> Creating wildcard Gateway (*.kindtks.localhost)..."
-  kubectl apply -f "$KINDTKS_PROFILE_DIR/gateway.yaml"
+  kubectl apply -f "$GEN1_DIR/gateway.yaml"
   add_gateway_extra_hosts
 }
 
@@ -135,7 +139,7 @@ install_vault() {
     --wait --timeout 600s
 
   echo "==> Exposing Vault UI at vault.kindtks.localhost..."
-  kubectl apply -f "$KINDTKS_PROFILE_DIR/vault-virtualservice.yaml"
+  kubectl apply -f "$GEN1_DIR/vault-virtualservice.yaml"
 }
 
 install_vault_secrets_operator() {

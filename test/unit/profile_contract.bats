@@ -33,7 +33,9 @@ PROFILES_DIR="${BATS_TEST_DIRNAME}/../../profiles"
   for dir in "$PROFILES_DIR"/*/; do
     local name
     name=$(basename "$dir")
-    if ! grep -q '^create()' "${dir}/install.sh"; then
+    # Source the script as kindtks does; a profile may get create from
+    # another profile's script (gen1-rootless sources gen1).
+    if ! (KINDTKS_PROFILE_DIR="${dir%/}" && source "${dir}/install.sh" && [ "$(type -t create)" = function ]); then
       missing+=("$name")
     fi
   done
@@ -45,7 +47,9 @@ PROFILES_DIR="${BATS_TEST_DIRNAME}/../../profiles"
   for dir in "$PROFILES_DIR"/*/; do
     local name
     name=$(basename "$dir")
-    if ! grep -q '^delete()' "${dir}/install.sh"; then
+    # Source the script as kindtks does; a profile may get delete from
+    # another profile's script (gen1-rootless sources gen1).
+    if ! (KINDTKS_PROFILE_DIR="${dir%/}" && source "${dir}/install.sh" && [ "$(type -t delete)" = function ]); then
       missing+=("$name")
     fi
   done
