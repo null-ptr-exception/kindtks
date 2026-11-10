@@ -9,6 +9,7 @@
       "additionalProperties": false,
       "properties": {
         "kind-node": {"type": "string"},
+        "kube-network-policies": {"type": "string"},
         "istio-pilot": {"type": "string"},
         "istio-proxy": {"type": "string"},
         "vault": {"type": "string"},

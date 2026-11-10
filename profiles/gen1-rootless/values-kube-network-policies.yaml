@@ -1,0 +1,5 @@
+image:
+  repository: ${IMAGE_KUBE_NETWORK_POLICIES_REPO}
+  tag: ${IMAGE_KUBE_NETWORK_POLICIES_TAG}
+# AdminNetworkPolicy needs CRDs that gen1-rootless does not install.
+adminNetworkPolicy: false

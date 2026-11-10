@@ -25,7 +25,9 @@ split_image_refs() {
 helm_install() {
   local name="$1" chart="$2" namespace="$3"
   shift 3
-  local values_file="$GEN1_DIR/values-${name}.yaml"
+  # A profile's own values file comes first (gen1-rootless), then gen1's.
+  local values_file="$KINDTKS_PROFILE_DIR/values-${name}.yaml"
+  [ -f "$values_file" ] || values_file="$GEN1_DIR/values-${name}.yaml"
   local args=()
   if [ -f "$values_file" ]; then
     local tmp
@@ -48,7 +50,7 @@ create() {
     --image "${IMAGE_KIND_NODE}" \
     --config "${KINDTKS_KIND_CONFIG:-$KINDTKS_PROFILE_DIR/kind-config.yaml}"
 
-  install_cilium
+  install_cni
 
   echo "==> Waiting for nodes to be ready..."
   kubectl wait --for=condition=Ready nodes --all --timeout=600s
@@ -83,6 +85,11 @@ delete() {
 install_storageclasses() {
   echo "==> Creating per-DC StorageClasses (netapp-dc1, netapp-dc2, netapp-dc3)..."
   kubectl apply -f "$GEN1_DIR/storageclasses.yaml"
+}
+
+# The CNI step; gen1-rootless replaces it.
+install_cni() {
+  install_cilium
 }
 
 install_cilium() {

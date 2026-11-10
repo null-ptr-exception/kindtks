@@ -81,4 +81,5 @@ teardown_file() {
 @test "installed charts are present" {
   run ls "$H/.local/share/kindtks/charts"
   assert_output --partial "cilium-1.13.10.tgz"
+  assert_output --partial "kube-network-policies-1.1.2.tgz"
 }

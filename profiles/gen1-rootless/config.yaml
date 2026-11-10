@@ -1,5 +1,6 @@
 images:
   kind-node: kindest/node:v1.24.17
+  kube-network-policies: registry.k8s.io/networking/kube-network-policies:v1.1.1
   istio-pilot: docker.io/istio/pilot:1.16.7
   istio-proxy: docker.io/istio/proxyv2:1.16.7
   vault: docker.io/hashicorp/vault:2.0.3

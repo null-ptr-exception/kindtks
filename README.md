@@ -78,7 +78,7 @@ After creation, the kubectl context is set to `kind-<cluster>` (e.g. `kind-gen1`
 Each profile has its own documentation accessible via `kindtks help <profile>`.
 
 - **gen1** — Cilium, Istio, Vault, Vault Secrets Operator (`kindtks help gen1`)
-- **gen1-rootless** — gen1 without Cilium, for rootless Docker (`kindtks help gen1-rootless`)
+- **gen1-rootless** — gen1 for rootless Docker: kindnet and kube-network-policies instead of Cilium (`kindtks help gen1-rootless`)
 
 A profile is a directory with an `install.sh` defining `create` and `delete`; it reads its options with `"$KINDTKS_BIN" value <dot.path>` (lists print one item per line).
 
